@@ -1,0 +1,14 @@
+{
+  "name": "@inanutshell/shared",
+  "version": "1.0.0",
+  "description": "Shared utilities for InANutshell cross-platform app",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": ["youtube", "summarization", "shared"],
+  "author": "pete-h-87",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}

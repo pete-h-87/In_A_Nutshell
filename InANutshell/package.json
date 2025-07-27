@@ -1,0 +1,41 @@
+{
+  "name": "inanutshell-monorepo",
+  "version": "1.0.0",
+  "description": "InANutshell - Cross-platform YouTube video summarization app",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "build:all": "npm run build --workspaces",
+    "test:all": "npm run test --workspaces",
+    "dev:mobile": "npm run start --workspace=packages/mobile",
+    "dev:extension": "npm run dev --workspace=packages/browser-extension",
+    "build:mobile": "npm run build --workspace=packages/mobile",
+    "build:extension": "npm run build --workspace=packages/browser-extension",
+    "clean": "rm -rf node_modules packages/*/node_modules"
+  },
+  "devDependencies": {
+    "lerna": "^7.0.0",
+    "jest": "^29.0.0"
+  },
+  "keywords": [
+    "youtube",
+    "summarization",
+    "react-native",
+    "browser-extension",
+    "ai",
+    "monorepo"
+  ],
+  "author": "pete-h-87",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pete-h-87/In_A_Nutshell.git"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}

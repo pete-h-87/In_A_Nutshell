@@ -1,0 +1,11 @@
+{
+  "name": "InANutshell",
+  "displayName": "InANutshell",
+  "expo": {
+    "name": "InANutshell",
+    "slug": "inanutshell",
+    "version": "1.0.0",
+    "platforms": ["ios", "android"],
+    "description": "Get instant summaries of YouTube videos"
+  }
+}
