@@ -16,17 +16,33 @@ class YouTubeContentScript {
   }
 
   addSummarizeButton() {
+    console.log('InANutshell: Adding summarize button...');
+    
     // Find YouTube's action buttons container
     const actionsContainer = document.querySelector('#actions');
-    if (!actionsContainer) return;
+    console.log('InANutshell: Actions container found:', !!actionsContainer);
+    
+    if (!actionsContainer) {
+      console.log('InANutshell: No actions container found, retrying in 2 seconds...');
+      setTimeout(() => this.addSummarizeButton(), 2000);
+      return;
+    }
+
+    // Check if button already exists
+    if (document.querySelector('.inanutshell-summarize-btn')) {
+      console.log('InANutshell: Button already exists');
+      return;
+    }
 
     // Create our summarize button
     const button = document.createElement('button');
-    button.innerHTML = '🥜 Summarize';
+    button.textContent = '🥜 Summarize';
     button.className = 'inanutshell-summarize-btn';
+    button.style.cssText = 'margin: 0 8px; padding: 8px 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer;';
     button.onclick = () => this.handleSummarize();
 
     actionsContainer.appendChild(button);
+    console.log('InANutshell: Button added successfully');
   }
 
   async handleSummarize() {
@@ -205,8 +221,18 @@ class YouTubeContentScript {
 }
 
 // Initialize when page loads
+function initializeExtension() {
+  console.log('InANutshell: Initializing extension...');
+  try {
+    new YouTubeContentScript();
+    console.log('InANutshell: Extension initialized successfully');
+  } catch (error) {
+    console.error('InANutshell: Initialization failed:', error);
+  }
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => new YouTubeContentScript());
+  document.addEventListener('DOMContentLoaded', initializeExtension);
 } else {
-  new YouTubeContentScript();
+  initializeExtension();
 }

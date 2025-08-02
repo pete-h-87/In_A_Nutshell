@@ -2,11 +2,11 @@
 class YouTubeAPI {
   constructor() {
     this.transcriptSelectors = {
-      moreButton: '[data-testid="expand"], #expand, [aria-label*="more"], [aria-label*="Show more"]',
-      transcriptButton: '[aria-label*="transcript"], [aria-label*="Transcript"], button:contains("Show transcript")',
-      transcriptPanel: '#segments-container, [data-testid="transcript"], .ytd-transcript-segment-list-renderer',
-      transcriptSegments: '.ytd-transcript-segment-renderer, [data-testid="transcript-segment"]',
-      transcriptText: '.segment-text, .ytd-transcript-segment-renderer .text'
+      moreButton: '.yt-spec-button-shape-next--text, [data-testid="expand"], #expand, [aria-label*="more"], [aria-label*="Show more"]',
+      transcriptButton: '[aria-label="Show transcript"], [aria-label*="transcript" i], .yt-spec-button-shape-next[aria-label*="transcript" i]',
+      transcriptPanel: '#segments-container, [data-testid="transcript"], .ytd-transcript-segment-list-renderer, #transcript',
+      transcriptSegments: '.ytd-transcript-segment-renderer, [data-testid="transcript-segment"], .segment',
+      transcriptText: '.segment-text, .ytd-transcript-segment-renderer .text, .segment-text'
     };
     this.maxRetries = 5;
     this.retryDelay = 1000;

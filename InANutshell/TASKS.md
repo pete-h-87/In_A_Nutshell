@@ -1,69 +1,78 @@
 # InANutshell - Task Overview
 
 ## Project Vision
-**Goal**: Create an iOS app that integrates with YouTube's share functionality to provide instant video summaries.
+**Goal**: Create a browser extension (Phase 1) and mobile app (Phase 2) for instant YouTube video summaries.
 
-**User Flow**: 
+**Browser Extension User Flow**: 
+1. User navigates to any YouTube video
+2. Clicks the "🥜 Summarize" button injected on the page
+3. Extension extracts video transcript automatically
+4. AI generates a concise summary
+5. Summary appears in a modal overlay for quick reading
+
+**Mobile App User Flow (Future Phase)**: 
 1. User finds a YouTube video they want to summarize
 2. Taps the "Share" button on the video
 3. Selects "InANutshell" from the share options
-4. App extracts video transcript automatically
-5. AI generates a concise summary
-6. Summary appears in a pop-up modal for quick reading
+4. App extracts video transcript and generates summary
 
-## Technology Research Needed
-- [ ] iOS Share Extension development (Swift/SwiftUI)
-- [ ] YouTube transcript extraction methods
-- [ ] AI summarization APIs (OpenAI, Claude, etc.)
-- [ ] iOS app development environment setup
+## Technology Stack
+- ✅ Browser Extension (Chrome Extension APIs, DOM manipulation)
+- ✅ YouTube transcript extraction via DOM (implemented)
+- [ ] AI summarization APIs (OpenAI, Claude, etc.) - IN PROGRESS
+- [ ] iOS Share Extension development (Swift/SwiftUI) - FUTURE PHASE
+- [ ] React Native mobile development - FUTURE PHASE
 
 ## Development Phases
 
-### Phase 1: Research & Planning
+### Phase 1: Browser Extension (CURRENT FOCUS)
+- [x] Set up monorepo architecture with browser extension
+- [x] Implement YouTube transcript extraction via DOM
+- [x] Create extension manifest and content scripts
+- [ ] **CURRENT**: Fix extension import issues and test loading
+- [ ] Integrate AI summarization service (OpenAI/Claude API)
+- [ ] Polish extension UI and error handling
+- [ ] Test on various YouTube videos
+- [ ] Deploy to Chrome Web Store
+
+### Phase 2: Mobile App Development (FUTURE)
 - [ ] Research iOS Share Extension architecture
-- [ ] Investigate YouTube transcript API options
-- [ ] Evaluate AI summarization services
-- [ ] Define technical requirements
-- [ ] Choose development stack
-
-### Phase 2: Core Infrastructure
-- [ ] Set up iOS development environment
-- [ ] Create basic iOS app structure
+- [ ] Set up React Native development environment
+- [ ] Create basic mobile app structure
 - [ ] Implement Share Extension functionality
-- [ ] Set up YouTube URL handling
+- [ ] Port browser extension logic to mobile
+- [ ] Design mobile UI and user experience
+- [ ] iOS/Android testing and deployment
 
-### Phase 3: Data Processing
-- [ ] Implement YouTube transcript extraction
-- [ ] Integrate AI summarization service
-- [ ] Create data processing pipeline
-- [ ] Add error handling and validation
+### Phase 3: Advanced Features (FUTURE)
+- [ ] Summary history and bookmarking
+- [ ] Custom AI model fine-tuning
+- [ ] Multi-language support
+- [ ] Team/enterprise features
+- [ ] Analytics and usage insights
 
-### Phase 4: User Interface
-- [ ] Design modal popup interface
-- [ ] Implement summary display
-- [ ] Add loading states and animations
-- [ ] Create settings/preferences
+## Current Sprint: Browser Extension MVP
 
-### Phase 5: Testing & Deployment
-- [ ] Test with various YouTube videos
-- [ ] Performance optimization
-- [ ] App Store submission preparation
-- [ ] Beta testing with real users
+### 🚧 IN PROGRESS
+- [ ] **CRITICAL**: Fix browser extension import issue (ES6 modules → browser-compatible)
+- [ ] Test extension loading in Chrome (`chrome://extensions/`)
+- [ ] Verify transcript extraction on real YouTube videos
 
-## Current Tasks
-- [x] Create project directory
-- [x] Set up initial documentation files
-- [x] Create README.md documentation
-- [x] Connect to GitHub repository
+### 📋 NEXT UP
+- [ ] Integrate AI API for summarization (OpenAI/Claude)
+- [ ] Polish modal UI and loading states
+- [ ] Add error handling for edge cases
+- [ ] Test across different video types and lengths
 
-## Next Immediate Steps
-- [ ] Research iOS development requirements
-- [ ] Investigate YouTube transcript access methods
-- [ ] Choose AI summarization service
-- [ ] Set up development environment
+### ✅ COMPLETED
+- ✅ Monorepo setup with npm workspaces
+- ✅ YouTube transcript extraction implementation (DOM-based)
+- ✅ Browser extension manifest and structure
+- ✅ Content script with modal UI
+- ✅ Git repository and branch strategy
+- ✅ Development documentation (README, CLAUDE.md)
 
-## Completed
-- ✅ Project directory created
-- ✅ Initial documentation setup
-- ✅ GitHub repository connected
-- ✅ README.md created with project framework
+## Current Status
+**Branch**: `feature/youtube-api`  
+**Blocker**: Extension ES6 import issue needs fixing  
+**Next Session**: Fix imports → test in Chrome → integrate AI API

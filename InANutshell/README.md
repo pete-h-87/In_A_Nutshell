@@ -4,7 +4,7 @@ A comprehensive project built from scratch to demonstrate development workflows 
 
 ## Project Overview
 
-InANutshell is a cross-platform YouTube video summarization app built with industry-standard monorepo architecture. The app allows users to get instant AI-powered summaries of YouTube videos through mobile sharing (iOS/Android) and browser extensions.
+InANutshell is a YouTube video summarization tool built with industry-standard monorepo architecture. **Phase 1** focuses on a browser extension for instant video summaries. **Phase 2** will add mobile apps with share extension functionality.
 
 ## Getting Started
 
@@ -70,16 +70,17 @@ InANutshell/
 
 ## Usage
 
-### Mobile App (React Native)
-- Share a YouTube video to the InANutshell app
-- App will extract transcript and generate summary
-- View summary in modal popup
+### Browser Extension (Phase 1 - Current Focus)
+- Install extension in Chrome (load unpacked for development)
+- Navigate to any YouTube video with auto-captions
+- Click the "🥜 Summarize" button injected on the page
+- Get instant video transcript extraction and AI summary
+- View results in modal overlay without leaving YouTube
 
-### Browser Extension
-- Install extension in Chrome/Firefox
-- Navigate to any YouTube video
-- Click the "🥜 Summarize" button or use extension popup
-- Get instant video summary without leaving the page
+### Mobile App (Phase 2 - Future)
+- Share YouTube videos to the InANutshell app
+- Automatic transcript extraction and AI summarization
+- Quick summary viewing in modal popup
 
 ### Development Commands
 
@@ -109,9 +110,9 @@ This project uses a **monorepo architecture** with npm workspaces:
 ### Architecture
 This monorepo follows industry standards used by companies like Meta, Shopify, and Discord:
 
-- **`packages/shared/`**: Common utilities for YouTube API and AI summarization
-- **`packages/mobile/`**: React Native app for iOS and Android with share extension support  
-- **`packages/browser-extension/`**: Cross-browser extension for Chrome, Firefox, and Safari
+- **`packages/browser-extension/`**: Chrome extension with YouTube integration (Phase 1 focus)
+- **`packages/shared/`**: Common utilities for YouTube transcript extraction and AI summarization
+- **`packages/mobile/`**: React Native app for iOS and Android (Phase 2 - future development)
 
 ### Monorepo Benefits
 - **Code Sharing**: YouTube API and summarization logic shared across platforms
@@ -142,11 +143,12 @@ This monorepo follows industry standards used by companies like Meta, Shopify, a
 
 ## Changelog
 
-### v1.0.0 - Initial Monorepo Setup
+### v1.0.0 - Browser Extension Foundation
 - ✅ Industry-standard monorepo architecture established
-- ✅ Workspace configuration with npm workspaces
-- ✅ Shared utilities package structure (`@inanutshell/shared`)
-- ✅ React Native mobile app foundation
 - ✅ Browser extension framework with manifest v3
-- ✅ Documentation and development workflow
-- ✅ Git repository with proper .gitignore
+- ✅ YouTube transcript extraction via DOM manipulation
+- ✅ Extension content script with modal UI
+- ✅ Shared utilities package structure (`@inanutshell/shared`)
+- ✅ Development workflow and documentation
+- 🚧 **Current**: Fixing ES6 import issues for browser compatibility
+- 📋 **Next**: AI integration and Chrome Web Store deployment
