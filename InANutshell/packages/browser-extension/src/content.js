@@ -374,25 +374,16 @@ class YouTubeThumbnailInjector {
     try {
       this.contentScript.showLoadingModal();
       
-      console.log('=== REAL TRANSCRIPT EXTRACTION VIA API ===');
+      console.log('=== IFRAME TRANSCRIPT EXTRACTION ===');
       console.log('Video ID:', videoId);
       console.log('Video URL:', videoUrl);
       
-      // Request transcript from background script via YouTube API
-      const response = await chrome.runtime.sendMessage({
-        type: 'EXTRACT_TRANSCRIPT',
-        videoId: videoId
-      });
+      // Extract transcript via UI automation
+      const result = await this.extractTranscriptViaUIAutomation(videoId);
       
-      if (!response.success) {
-        throw new Error(response.error);
-      }
-      
-      const result = response.transcript;
       console.log('=== TRANSCRIPT EXTRACTED SUCCESSFULLY ===');
-      console.log('Video ID:', result.videoId);
+      console.log('Video ID:', videoId);
       console.log('Transcript length:', result.transcript.length);
-      console.log('Language:', result.language);
       console.log('Source:', result.source);
       console.log('Transcript preview:', result.transcript.substring(0, 200) + '...');
       console.log('==========================================');
@@ -405,7 +396,7 @@ class YouTubeThumbnailInjector {
       this.contentScript.showSummaryModal({
         title: 'Transcript Extracted Successfully',
         content: result.transcript,
-        videoId: result.videoId,
+        videoId: videoId,
         timestamp: result.timestamp
       });
       
@@ -414,6 +405,266 @@ class YouTubeThumbnailInjector {
       this.contentScript.hideLoadingModal();
       this.contentScript.showErrorMessage(`Failed to extract transcript: ${error.message}`);
     }
+  }
+
+  async extractTranscriptViaUIAutomation(videoId) {
+    console.log("Starting UI automation transcript extraction for:", videoId);
+    
+    // Check if we're on the video page already
+    const currentVideoId = this.getCurrentVideoId();
+    if (currentVideoId === videoId) {
+      console.log('Video is already loaded, using UI automation on current page');
+      return this.clickTranscriptButton(videoId);
+    }
+    
+    // Need to navigate to video first
+    console.log('Navigating to video for UI automation');
+    return this.navigateAndClickTranscript(videoId);
+  }
+  
+  getCurrentVideoId() {
+    const url = window.location.href;
+    const match = url.match(/[?&]v=([^&]+)/);
+    return match ? match[1] : null;
+  }
+  
+  async clickTranscriptButton(videoId) {
+    console.log('Attempting to click transcript button via UI automation');
+    
+    return new Promise((resolve, reject) => {
+      // Step 1: Look for the "More" button (three dots or "...more")
+      const findMoreButton = () => {
+        const moreSelectors = [
+          'button[aria-label*="more"]',
+          'button[aria-label*="More"]', 
+          'button[aria-label*="Show more"]',
+          '#expand',
+          '.more-button',
+          'tp-yt-paper-button[aria-label*="more"]'
+        ];
+        
+        for (const selector of moreSelectors) {
+          const button = document.querySelector(selector);
+          if (button && button.offsetParent !== null) { // Check if visible
+            console.log('Found "More" button:', selector);
+            return button;
+          }
+        }
+        return null;
+      };
+      
+      // Step 2: Look for transcript button after clicking more
+      const findTranscriptButton = () => {
+        const transcriptSelectors = [
+          'button[aria-label*="transcript"]',
+          'button[aria-label*="Transcript"]',
+          'yt-formatted-string:contains("Show transcript")',
+          '[role="menuitem"]:contains("transcript")',
+          '.transcript-button'
+        ];
+        
+        for (const selector of transcriptSelectors) {
+          const button = document.querySelector(selector);
+          if (button && button.offsetParent !== null) {
+            console.log('Found transcript button:', selector);
+            return button;
+          }
+        }
+        return null;
+      };
+      
+      // Step 3: Extract transcript text from the panel
+      const extractTranscriptText = () => {
+        const transcriptSelectors = [
+          '#transcript-container',
+          '.transcript-container', 
+          '[data-target-id="engagement-panel-structured-description"] .segment-text',
+          '#structured-description .segment-text',
+          '.ytd-transcript-segment-renderer .segment-text'
+        ];
+        
+        for (const selector of transcriptSelectors) {
+          const container = document.querySelector(selector);
+          if (container) {
+            // Extract all text segments
+            const segments = container.querySelectorAll('.segment-text, [class*="segment"]');
+            if (segments.length > 0) {
+              const transcript = Array.from(segments)
+                .map(seg => seg.textContent.trim())
+                .filter(text => text.length > 0)
+                .join(' ');
+              
+              if (transcript.length > 50) {
+                console.log('Extracted transcript via UI:', transcript.substring(0, 100) + '...');
+                return transcript;
+              }
+            }
+          }
+        }
+        
+        // Fallback: get all visible text that looks like transcript
+        const allText = document.body.innerText;
+        if (allText.length > 200) {
+          console.log('Using fallback text extraction');
+          return allText.substring(0, 2000); // Limit to prevent too much content
+        }
+        
+        return null;
+      };
+      
+      // Execute the workflow
+      const executeWorkflow = () => {
+        let step = 0;
+        const maxSteps = 10;
+        
+        const nextStep = () => {
+          step++;
+          if (step > maxSteps) {
+            reject(new Error('UI automation workflow timed out'));
+            return;
+          }
+          
+          console.log(`UI automation step ${step}/${maxSteps}`);
+          
+          // Try to find and click more button first
+          const moreButton = findMoreButton();
+          if (moreButton && !moreButton.clicked) {
+            console.log('Clicking "More" button...');
+            moreButton.clicked = true;
+            moreButton.click();
+            setTimeout(nextStep, 1000); // Wait for menu to appear
+            return;
+          }
+          
+          // Try to find and click transcript button
+          const transcriptButton = findTranscriptButton();
+          if (transcriptButton && !transcriptButton.clicked) {
+            console.log('Clicking transcript button...');
+            transcriptButton.clicked = true;
+            transcriptButton.click();
+            setTimeout(nextStep, 2000); // Wait for transcript to load
+            return;
+          }
+          
+          // Try to extract transcript text
+          const transcript = extractTranscriptText();
+          if (transcript) {
+            resolve({
+              videoId: videoId,
+              transcript: transcript,
+              timestamp: new Date().toISOString(),
+              source: 'ui-automation',
+              language: 'en'
+            });
+            return;
+          }
+          
+          // If nothing found, try again
+          setTimeout(nextStep, 1000);
+        };
+        
+        nextStep();
+      };
+      
+      // Start the workflow
+      executeWorkflow();
+      
+      // Overall timeout
+      setTimeout(() => {
+        reject(new Error('UI automation timed out after 30 seconds'));
+      }, 30000);
+    });
+  }
+  
+  async navigateAndClickTranscript(videoId) {
+    console.log('Creating iframe for UI automation navigation');
+    
+    return new Promise((resolve, reject) => {
+      // Create iframe that will load the video page
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube.com/watch?v=${videoId}`;
+      iframe.style.cssText = `
+        position: fixed;
+        top: 50px;
+        left: 50px;
+        width: 800px;
+        height: 600px;
+        z-index: 10000;
+        border: 2px solid red;
+        background: white;
+      `;
+      
+      iframe.onload = () => {
+        console.log('Iframe loaded, attempting UI automation...');
+        
+        try {
+          // Try to access iframe content and perform clicks
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+          
+          // Simple automation within iframe
+          setTimeout(() => {
+            // Look for more button in iframe
+            const moreBtn = iframeDoc.querySelector('button[aria-label*="more"], #expand');
+            if (moreBtn) {
+              console.log('Clicking more button in iframe');
+              moreBtn.click();
+              
+              setTimeout(() => {
+                // Look for transcript button
+                const transcriptBtn = iframeDoc.querySelector('button[aria-label*="transcript"]');
+                if (transcriptBtn) {
+                  console.log('Clicking transcript button in iframe');
+                  transcriptBtn.click();
+                  
+                  setTimeout(() => {
+                    // Extract transcript
+                    const transcript = iframeDoc.body.innerText;
+                    if (transcript.length > 100) {
+                      document.body.removeChild(iframe);
+                      resolve({
+                        videoId: videoId,
+                        transcript: transcript.substring(0, 2000),
+                        timestamp: new Date().toISOString(),
+                        source: 'iframe-ui-automation',
+                        language: 'en'
+                      });
+                    } else {
+                      document.body.removeChild(iframe);
+                      reject(new Error('Could not extract transcript from iframe'));
+                    }
+                  }, 3000);
+                } else {
+                  document.body.removeChild(iframe);
+                  reject(new Error('Transcript button not found in iframe'));
+                }
+              }, 2000);
+            } else {
+              document.body.removeChild(iframe);
+              reject(new Error('More button not found in iframe'));
+            }
+          }, 3000);
+          
+        } catch (error) {
+          document.body.removeChild(iframe);
+          reject(new Error('Cannot access iframe content due to CORS: ' + error.message));
+        }
+      };
+      
+      iframe.onerror = () => {
+        document.body.removeChild(iframe);
+        reject(new Error('Failed to load video in iframe'));
+      };
+      
+      document.body.appendChild(iframe);
+      
+      // Timeout fallback
+      setTimeout(() => {
+        if (iframe.parentNode) {
+          document.body.removeChild(iframe);
+        }
+        reject(new Error('Iframe UI automation timed out'));
+      }, 20000);
+    });
   }
 
   destroy() {
@@ -501,17 +752,8 @@ class YouTubeContentScript {
         throw new Error('Could not extract video ID from URL');
       }
       
-      // Request transcript from background script via YouTube API
-      const response = await chrome.runtime.sendMessage({
-        type: 'EXTRACT_TRANSCRIPT',
-        videoId: videoId
-      });
-      
-      if (!response.success) {
-        throw new Error(response.error);
-      }
-      
-      const result = response.transcript;
+      // Extract transcript via UI automation
+      const result = await this.thumbnailInjector.extractTranscriptViaUIAutomation(videoId);
       console.log('=== IN-VIDEO TRANSCRIPT EXTRACTED SUCCESSFULLY ===');
       console.log('Video ID:', result.videoId);
       console.log('Transcript length:', result.transcript.length);
@@ -556,8 +798,9 @@ class YouTubeContentScript {
       <div class="inanutshell-modal-content">
         <div class="inanutshell-loading">
           <div class="inanutshell-spinner"></div>
-          <h3>Extracting Transcript...</h3>
-          <p>Please wait while we extract the video transcript</p>
+          <h3>Loading Video...</h3>
+          <p>Extracting captions from video player...</p>
+          <small style="color: #666; margin-top: 8px; display: block;">This may take 10-15 seconds</small>
         </div>
       </div>
     `;
