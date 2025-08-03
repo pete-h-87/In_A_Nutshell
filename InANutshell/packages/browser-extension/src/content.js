@@ -506,7 +506,7 @@ class YouTubeThumbnailInjector {
         const allText = document.body.innerText;
         if (allText.length > 200) {
           console.log('Using fallback text extraction');
-          return allText.substring(0, 2000); // Limit to prevent too much content
+          return allText; // Return full text, don't truncate
         }
         
         return null;
@@ -623,7 +623,7 @@ class YouTubeThumbnailInjector {
                       document.body.removeChild(iframe);
                       resolve({
                         videoId: videoId,
-                        transcript: transcript.substring(0, 2000),
+                        transcript: transcript,
                         timestamp: new Date().toISOString(),
                         source: 'iframe-ui-automation',
                         language: 'en'
@@ -827,12 +827,12 @@ class YouTubeContentScript {
         </div>
         <div class="inanutshell-summary">
           <div class="transcript-content">
-            ${content.length > 2000 ? 
-              `<p><strong>Preview (first 2000 characters):</strong></p>
-               <p>${content.substring(0, 2000)}...</p>
-               <p><em>Full transcript available - ${content.length} characters total</em></p>` :
-              `<p>${content}</p>`
-            }
+            <div class="transcript-stats">
+              <p><strong>Full Transcript (${content.length} characters)</strong></p>
+            </div>
+            <div class="transcript-text" style="max-height: 400px; overflow-y: auto; border: 1px solid #eee; padding: 16px; border-radius: 4px; font-size: 14px; line-height: 1.5;">
+              ${content.replace(/\n/g, '<br>')}
+            </div>
           </div>
           ${isTranscript ? `
             <div class="transcript-meta">
