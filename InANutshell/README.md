@@ -27,12 +27,37 @@ InANutshell is a YouTube video summarization tool built with industry-standard m
    npm install
    ```
 
-3. For mobile development:
+3. **Set up API key** (required for browser extension):
+   
+   Create a `.env` file in the `packages/browser-extension/` directory:
+   ```powershell
+   # Navigate to browser extension folder
+   cd packages/browser-extension
+   
+   # Create .env file with your API key
+   echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env
+   ```
+   
+   **Getting API Key:**
+   - **Gemini API Key**: Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
+
+4. **Build the extension**:
+   ```powershell
+   npm run build
+   ```
+
+5. For mobile development:
    ```powershell
    npm run dev:mobile
    ```
 
-4. For browser extension development:
+6. **Load extension in Chrome**:
+   - Open Chrome and go to `chrome://extensions/`
+   - Enable "Developer mode" (top right toggle)
+   - Click "Load unpacked" and select the `packages/browser-extension/dist/` folder
+   - The extension should now appear in your extensions list
+
+7. For browser extension development:
    ```powershell
    npm run dev:extension
    ```
@@ -130,8 +155,8 @@ This monorepo follows industry standards used by companies like Meta, Shopify, a
 - **Mobile**: React Native, JavaScript/TypeScript
 - **Extension**: Vanilla JavaScript, Chrome Extension APIs
 - **Shared**: ES6 modules, common utilities
-- **AI**: OpenAI API or similar for summarization
-- **YouTube**: Transcript extraction via YouTube APIs
+- **AI**: Gemini API for summarization
+- **YouTube**: Transcript extraction via DOM automation
 
 ## Contributing
 

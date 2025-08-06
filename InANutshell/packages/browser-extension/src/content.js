@@ -1,5 +1,5 @@
 // Content script that runs on YouTube pages
-import { YouTubeAPI, isValidYouTubeUrl } from '@inanutshell/shared';
+import { YouTubeAPI, Summarizer, isValidYouTubeUrl } from '@inanutshell/shared';
 
 class YouTubeThumbnailInjector {
   constructor(contentScript) {
@@ -435,19 +435,29 @@ class YouTubeThumbnailInjector {
       // Step 1: Look for the "More" button (three dots or "...more")
       const findMoreButton = () => {
         const moreSelectors = [
+          'tp-yt-paper-button#expand',                    // New: specific expand button
+          '#expand',                                      // Existing: any element with expand ID
+          'tp-yt-paper-button.ytd-text-inline-expander', // New: by class
           'button[aria-label*="more"]',
           'button[aria-label*="More"]', 
           'button[aria-label*="Show more"]',
-          '#expand',
           '.more-button',
           'tp-yt-paper-button[aria-label*="more"]'
         ];
         
         for (const selector of moreSelectors) {
           const button = document.querySelector(selector);
-          if (button && button.offsetParent !== null) { // Check if visible
-            console.log('Found "More" button:', selector);
-            return button;
+          if (button) {
+            // For #expand button, don't require visibility check since it might be hidden but still clickable
+            if (selector.includes('#expand') || selector.includes('tp-yt-paper-button#expand')) {
+              console.log('Found "More" button (may be hidden):', selector);
+              return button;
+            }
+            // For other buttons, still check visibility
+            if (button.offsetParent !== null) {
+              console.log('Found "More" button:', selector);
+              return button;
+            }
           }
         }
         return null;
@@ -677,6 +687,7 @@ class YouTubeThumbnailInjector {
 class YouTubeContentScript {
   constructor() {
     this.youtubeAPI = new YouTubeAPI();
+    this.summarizer = new Summarizer();
     this.thumbnailInjector = new YouTubeThumbnailInjector(this);
     this.init();
   }
@@ -766,13 +777,36 @@ class YouTubeContentScript {
       window.lastExtractedTranscript = result;
       console.log('✅ Real in-video transcript stored in window.lastExtractedTranscript');
       
-      // Show transcript result
-      this.showSummaryModal({
-        title: 'Transcript Extracted Successfully',
-        content: result.transcript,
-        videoId: result.videoId,
-        timestamp: result.timestamp
-      });
+      this.hideLoadingModal();
+      this.showLoadingModal('Generating AI Summary...');
+      
+      try {
+        // Send transcript to Gemini for summarization
+        console.log('Sending transcript to Gemini for summarization...');
+        const summary = await this.summarizer.summarize(result.transcript);
+        
+        console.log('✅ Summary generated:', summary.substring(0, 100) + '...');
+        
+        // Show summary result
+        this.showSummaryModal({
+          title: 'Video Summary',
+          content: summary,
+          transcript: result.transcript,
+          videoId: result.videoId,
+          timestamp: result.timestamp
+        });
+        
+      } catch (error) {
+        console.error('Summarization failed:', error);
+        // Fallback to showing raw transcript
+        this.showSummaryModal({
+          title: 'Transcript (Summarization Failed)',
+          content: result.transcript,
+          error: error.message,
+          videoId: result.videoId,
+          timestamp: result.timestamp
+        });
+      }
       
     } catch (error) {
       console.error('Transcript extraction failed:', error);
@@ -787,20 +821,24 @@ class YouTubeContentScript {
     }
   }
 
-  showLoadingModal() {
+  showLoadingModal(customMessage = null) {
     this.hideModals(); // Remove any existing modals
     
     const modal = document.createElement('div');
     modal.className = 'inanutshell-modal';
     modal.id = 'inanutshell-loading-modal';
     
+    const title = customMessage || 'Loading Video...';
+    const subtitle = customMessage ? 'Please wait while we process your request...' : 'Extracting captions from video player...';
+    const timeEstimate = customMessage ? 'This may take 5-10 seconds' : 'This may take 10-15 seconds';
+    
     modal.innerHTML = `
       <div class="inanutshell-modal-content">
         <div class="inanutshell-loading">
           <div class="inanutshell-spinner"></div>
-          <h3>Loading Video...</h3>
-          <p>Extracting captions from video player...</p>
-          <small style="color: #666; margin-top: 8px; display: block;">This may take 10-15 seconds</small>
+          <h3>${title}</h3>
+          <p>${subtitle}</p>
+          <small style="color: #666; margin-top: 8px; display: block;">${timeEstimate}</small>
         </div>
       </div>
     `;

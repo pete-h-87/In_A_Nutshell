@@ -1,4 +1,6 @@
 const path = require("path");
+const webpack = require("webpack");
+require('dotenv').config();
 
 module.exports = {
   mode: "development",
@@ -41,5 +43,11 @@ module.exports = {
   optimization: {
     minimize: false, // Keep readable for development
   },
+
+  plugins: [
+    new webpack.DefinePlugin({
+      'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY),
+    }),
+  ],
 
 };

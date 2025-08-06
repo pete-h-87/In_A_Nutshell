@@ -29,6 +29,7 @@
 - [x] Set up monorepo architecture with browser extension
 - [x] Implement YouTube transcript extraction via DOM
 - [x] Create extension manifest and content scripts
+- [x] Complete transcript extraction workflow (click "...more" → "Show transcript" → scrape → display in modal)
 - [ ] **CURRENT**: Fix extension import issues and test loading
 - [ ] Integrate AI summarization service (OpenAI/Claude API)
 - [ ] Polish extension UI and error handling
@@ -69,6 +70,7 @@
 - ✅ YouTube transcript extraction implementation (DOM-based)
 - ✅ Browser extension manifest and structure
 - ✅ Content script with modal UI
+- ✅ Full transcript workflow: "Summarize" button → "...more" → "Show transcript" → scrape → modal display
 - ✅ Git repository and branch strategy
 - ✅ Development documentation (README, CLAUDE.md)
 
