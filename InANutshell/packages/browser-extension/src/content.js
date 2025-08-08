@@ -179,7 +179,7 @@ class YouTubeThumbnailInjector {
       
       if (menuButton) {
         console.log('InANutshell: Menu button clicked, waiting for dropdown...', menuButton);
-        setTimeout(() => this.injectIntoDropdownMenu(e.target), 200);
+        setTimeout(() => this.injectIntoDropdownMenu(menuButton), 200);
       }
     });
   }
@@ -254,6 +254,16 @@ class YouTubeThumbnailInjector {
     }
 
     console.log('InANutshell: Found video container:', videoContainer);
+    console.log('InANutshell: Video container HTML preview:', videoContainer.outerHTML.substring(0, 200));
+    
+    // Debug: Show all sidebar videos and their IDs
+    const allSidebarVideos = document.querySelectorAll('#related ytd-compact-video-renderer, #secondary ytd-compact-video-renderer');
+    console.log('InANutshell: All sidebar videos found:', allSidebarVideos.length);
+    allSidebarVideos.forEach((video, index) => {
+      const debugId = this.extractVideoId(video);
+      console.log(`InANutshell: Sidebar video ${index + 1}:`, debugId, video);
+    });
+    
     const videoId = this.extractVideoId(videoContainer);
     console.log('InANutshell: Extracted video ID:', videoId);
     
@@ -393,12 +403,37 @@ class YouTubeThumbnailInjector {
       console.log('✅ Real transcript stored in window.lastExtractedTranscript');
       
       this.contentScript.hideLoadingModal();
-      this.contentScript.showSummaryModal({
-        title: 'Transcript Extracted Successfully',
-        content: result.transcript,
-        videoId: videoId,
-        timestamp: result.timestamp
-      });
+      this.contentScript.showLoadingModal('Generating AI Summary...');
+      
+      try {
+        // Send transcript to Gemini for summarization
+        console.log('Sending thumbnail transcript to Gemini for summarization...');
+        const summary = await this.contentScript.summarizer.summarize(result.transcript);
+        
+        console.log('✅ Thumbnail summary generated:', summary.substring(0, 100) + '...');
+        
+        // Show summary result
+        this.contentScript.hideLoadingModal();
+        this.contentScript.showSummaryModal({
+          title: 'Video Summary',
+          content: summary,
+          transcript: result.transcript,
+          videoId: videoId,
+          timestamp: result.timestamp
+        });
+        
+      } catch (error) {
+        console.error('Thumbnail summarization failed:', error);
+        // Fallback to showing raw transcript
+        this.contentScript.hideLoadingModal();
+        this.contentScript.showSummaryModal({
+          title: 'Transcript (Summarization Failed)',
+          content: result.transcript,
+          error: error.message,
+          videoId: videoId,
+          timestamp: result.timestamp
+        });
+      }
       
     } catch (error) {
       console.error('Transcript extraction failed:', error);
@@ -595,13 +630,15 @@ class YouTubeThumbnailInjector {
       iframe.src = `https://www.youtube.com/watch?v=${videoId}`;
       iframe.style.cssText = `
         position: fixed;
-        top: 50px;
-        left: 50px;
+        top: -1000px;
+        left: -1000px;
         width: 800px;
         height: 600px;
-        z-index: 10000;
-        border: 2px solid red;
+        z-index: -1;
+        border: none;
         background: white;
+        opacity: 0;
+        pointer-events: none;
       `;
       
       iframe.onload = () => {
@@ -610,6 +647,16 @@ class YouTubeThumbnailInjector {
         try {
           // Try to access iframe content and perform clicks
           const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+          
+          // Pause the video immediately
+          setTimeout(() => {
+            const video = iframeDoc.querySelector('video');
+            if (video) {
+              video.pause();
+              video.muted = true; // Also mute it
+              console.log('Video paused and muted');
+            }
+          }, 1000);
           
           // Simple automation within iframe
           setTimeout(() => {
