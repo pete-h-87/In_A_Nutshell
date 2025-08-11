@@ -98,7 +98,20 @@ class YouTubeThumbnailInjector {
     customButton.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.handleThumbnailSummarize(videoId, videoRenderer);
+      console.log('=== MAIN PAGE BUTTON CLICKED ===');
+      
+      // Re-extract video ID fresh at click time
+      const freshVideoId = this.extractVideoId(videoRenderer);
+      console.log('Button fresh video ID:', freshVideoId);
+      console.log('Button original video ID:', videoId);
+      console.log('Button video renderer:', videoRenderer);
+      console.log('Button element:', e.currentTarget);
+      
+      // Use fresh video ID if available, otherwise fall back to original
+      const finalVideoId = freshVideoId || videoId;
+      console.log('Using final video ID:', finalVideoId);
+      
+      this.handleThumbnailSummarize(finalVideoId, videoRenderer);
     });
 
     topLevelButtons.appendChild(customButton);
@@ -151,7 +164,13 @@ class YouTubeThumbnailInjector {
     floatingButton.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.handleThumbnailSummarize(videoId, videoRenderer);
+      
+      // Re-extract video ID fresh at click time
+      const freshVideoId = this.extractVideoId(videoRenderer);
+      const finalVideoId = freshVideoId || videoId;
+      console.log('Floating button clicked - fresh video ID:', freshVideoId, 'final:', finalVideoId);
+      
+      this.handleThumbnailSummarize(finalVideoId, videoRenderer);
     });
 
     // Make the video renderer container relative positioned
@@ -230,16 +249,24 @@ class YouTubeThumbnailInjector {
       '.ytd-watch-next-secondary-results-renderer' // Watch page container
     ].join(', '));
     
+    console.log('InANutshell: Container from closest():', videoContainer);
+    console.log('InANutshell: Clicked element path:', clickedElement, clickedElement.parentElement, clickedElement.parentElement?.parentElement);
+    
     // For watch page, if we can't find the container, try a broader search
     if (!videoContainer) {
+      console.log('InANutshell: No container from closest(), trying broader search...');
       // Look in the sidebar area specifically
       const sidebarArea = document.querySelector('#related, #secondary, ytd-watch-next-secondary-results-renderer');
       if (sidebarArea) {
         const allVideoContainers = sidebarArea.querySelectorAll('ytd-compact-video-renderer, ytd-video-renderer');
+        console.log('InANutshell: Found', allVideoContainers.length, 'video containers in sidebar');
+        
         // Find the one that contains our clicked button
         for (let container of allVideoContainers) {
+          console.log('InANutshell: Checking if container contains clicked element:', container.contains(clickedElement));
           if (container.contains(clickedElement)) {
             videoContainer = container;
+            console.log('InANutshell: Found containing video container via broader search');
             break;
           }
         }
@@ -284,6 +311,9 @@ class YouTubeThumbnailInjector {
     menuItem.setAttribute('use-icons', '');
     menuItem.setAttribute('tabindex', '-1');
     
+    // Store the video ID directly on the menu item
+    menuItem.dataset.videoId = videoId;
+    
     menuItem.innerHTML = `
       <tp-yt-paper-item class="style-scope ytd-menu-service-item-renderer" role="option" tabindex="-1">
         <div style="display: flex; align-items: center; padding: 8px 16px; width: 100%;">
@@ -298,14 +328,23 @@ class YouTubeThumbnailInjector {
       e.preventDefault();
       e.stopPropagation();
       
+      // Re-extract video ID fresh at click time to avoid stale data
+      const freshVideoId = this.extractVideoId(videoContainer);
+      console.log('InANutshell: Menu item clicked, fresh video ID:', freshVideoId);
+      console.log('InANutshell: Stored video ID was:', e.currentTarget.dataset.videoId);
+      console.log('InANutshell: Original video ID was:', videoId);
+      
       // Close the menu
       const dropdown = document.querySelector('tp-yt-iron-dropdown[opened]');
       if (dropdown) {
         dropdown.removeAttribute('opened');
       }
       
-      // Handle summarize
-      this.handleThumbnailSummarize(videoId, videoContainer);
+      // Use the fresh video ID if available, otherwise fall back to stored
+      const finalVideoId = freshVideoId || e.currentTarget.dataset.videoId;
+      console.log('InANutshell: Using final video ID:', finalVideoId);
+      
+      this.handleThumbnailSummarize(finalVideoId, videoContainer);
     });
 
     // Insert at the top of the menu - handle different dropdown types
@@ -445,15 +484,9 @@ class YouTubeThumbnailInjector {
   async extractTranscriptViaUIAutomation(videoId) {
     console.log("Starting UI automation transcript extraction for:", videoId);
     
-    // Check if we're on the video page already
-    const currentVideoId = this.getCurrentVideoId();
-    if (currentVideoId === videoId) {
-      console.log('Video is already loaded, using UI automation on current page');
-      return this.clickTranscriptButton(videoId);
-    }
-    
-    // Need to navigate to video first
-    console.log('Navigating to video for UI automation');
+    // Always navigate to the specific video to ensure we're getting the right transcript
+    // Don't rely on current page URL since thumbnail clicks don't immediately change URL
+    console.log('Navigating to video for UI automation (forced navigation for accuracy)');
     return this.navigateAndClickTranscript(videoId);
   }
   
@@ -985,6 +1018,9 @@ class YouTubeContentScript {
     setInterval(() => {
       if (window.location.href !== currentUrl) {
         currentUrl = window.location.href;
+        // Clear processed videos cache on URL change
+        this.thumbnailInjector.processedVideos.clear();
+        console.log('InANutshell: URL changed, cleared processedVideos cache');
         // Re-add button if URL changed
         setTimeout(() => {
           this.addSummarizeButton();
