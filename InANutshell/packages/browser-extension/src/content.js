@@ -1062,9 +1062,8 @@ class YouTubeContentScript {
         throw new Error("Could not extract video ID from URL");
       }
 
-      // Extract transcript via UI automation
-      const result =
-        await this.thumbnailInjector.extractTranscriptViaUIAutomation(videoId);
+      // For main video page, extract transcript from current page without iframe
+      const result = await this.extractCurrentPageTranscript(videoId);
       console.log("=== IN-VIDEO TRANSCRIPT EXTRACTED SUCCESSFULLY ===");
       console.log("Video ID:", result.videoId);
       console.log("Transcript length:", result.transcript.length);
@@ -1122,6 +1121,150 @@ class YouTubeContentScript {
         button.textContent = "🥜 Summarize";
       }
     }
+  }
+
+  async extractCurrentPageTranscript(videoId) {
+    console.log("Extracting transcript from current page (no iframe)");
+    
+    return new Promise((resolve, reject) => {
+      // Look for existing transcript panel first
+      const checkForExistingTranscript = () => {
+        const transcriptSelectors = [
+          '#segments-container',
+          '#transcript-container', 
+          '.transcript-container',
+          '.ytd-transcript-segment-list-renderer',
+          '.ytd-transcript-segment-renderer',
+          '[data-testid="transcript"]'
+        ];
+        
+        for (const selector of transcriptSelectors) {
+          const container = document.querySelector(selector);
+          if (container) {
+            const segments = container.querySelectorAll('.segment-text, [class*="segment"]');
+            if (segments.length > 0) {
+              const transcript = Array.from(segments)
+                .map(seg => seg.textContent.trim())
+                .filter(text => text.length > 0)
+                .join(' ');
+              
+              if (transcript.length > 50) {
+                console.log('Found existing transcript on page');
+                resolve({
+                  videoId: videoId,
+                  transcript: transcript,
+                  timestamp: new Date().toISOString(),
+                  source: 'current-page',
+                  language: 'en'
+                });
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      };
+
+      // Step 1: Look for "Show more" button and click it
+      const clickShowMore = () => {
+        const moreSelectors = [
+          "tp-yt-paper-button#expand",
+          "#expand",
+          "tp-yt-paper-button.ytd-text-inline-expander",
+          'button[aria-label*="more"]',
+          'button[aria-label*="More"]',
+          'button[aria-label*="Show more"]',
+          ".more-button",
+          'tp-yt-paper-button[aria-label*="more"]',
+        ];
+
+        for (const selector of moreSelectors) {
+          const button = document.querySelector(selector);
+          if (button && (selector.includes("#expand") || button.offsetParent !== null)) {
+            console.log('Clicking "Show more" button');
+            button.click();
+            return true;
+          }
+        }
+        return false;
+      };
+
+      // Step 2: Look for transcript button and click it
+      const clickTranscriptButton = () => {
+        const transcriptSelectors = [
+          'button[aria-label*="transcript"]',
+          'button[aria-label*="Transcript"]',
+          'button[aria-label*="Show transcript"]',
+          '[role="menuitem"]:contains("transcript")',
+          ".transcript-button",
+        ];
+
+        for (const selector of transcriptSelectors) {
+          const button = document.querySelector(selector);
+          if (button && button.offsetParent !== null) {
+            console.log("Clicking transcript button");
+            button.click();
+            return true;
+          }
+        }
+        return false;
+      };
+
+      // Execute workflow
+      let step = 0;
+      const maxSteps = 10;
+
+      const executeStep = () => {
+        step++;
+        if (step > maxSteps) {
+          reject(new Error("Could not extract transcript from current page"));
+          return;
+        }
+
+        console.log(`Current page transcript extraction step ${step}/${maxSteps}`);
+
+        // First check if transcript is already visible
+        if (checkForExistingTranscript()) {
+          return;
+        }
+
+        // Debug: Log what transcript-related elements exist on page
+        if (step > 6) {
+          console.log('Debugging transcript elements on page:');
+          const allTranscriptElements = document.querySelectorAll('[class*="transcript"], [id*="transcript"], [data-testid*="transcript"]');
+          console.log('Found transcript-related elements:', allTranscriptElements.length);
+          allTranscriptElements.forEach((el, i) => {
+            console.log(`Element ${i}:`, el.className, el.id, el.tagName);
+          });
+        }
+
+        // Try to click show more button
+        if (step <= 3) {
+          clickShowMore();
+          setTimeout(executeStep, 1000);
+          return;
+        }
+
+        // Try to click transcript button
+        if (step <= 6) {
+          if (clickTranscriptButton()) {
+            setTimeout(executeStep, 2000); // Wait longer for transcript to load
+            return;
+          }
+        }
+
+        // Keep checking for transcript to appear
+        setTimeout(executeStep, 1000);
+      };
+
+      // Start the workflow
+      executeStep();
+
+      // Overall timeout
+      setTimeout(() => {
+        reject(new Error("Transcript extraction timed out"));
+      }, 20000);
+    });
   }
 
   showLoadingModal(customMessage = null) {
