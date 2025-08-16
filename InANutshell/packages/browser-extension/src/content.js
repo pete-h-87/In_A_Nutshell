@@ -1,15 +1,17 @@
 // Content script that runs on YouTube pages
-import { YouTubeAPI, Summarizer, isValidYouTubeUrl } from '@inanutshell/shared';
+import { YouTubeAPI, Summarizer, isValidYouTubeUrl } from "@inanutshell/shared";
 
 class YouTubeThumbnailInjector {
   constructor(contentScript) {
     this.contentScript = contentScript;
     this.observer = null;
     this.processedVideos = new Set();
+    this.currentIframe = null;
+    this.currentVideoId = null;
   }
 
   init() {
-    console.log('InANutshell: Initializing thumbnail menu injection...');
+    console.log("InANutshell: Initializing thumbnail menu injection...");
     this.setupMutationObserver();
     this.setupMenuClickListener();
     this.processExistingVideos();
@@ -17,15 +19,23 @@ class YouTubeThumbnailInjector {
 
   setupMutationObserver() {
     this.observer = new MutationObserver((mutations) => {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.ELEMENT_NODE) {
-            if (node.matches?.('ytd-video-renderer, ytd-rich-item-renderer, ytd-compact-video-renderer')) {
+            if (
+              node.matches?.(
+                "ytd-video-renderer, ytd-rich-item-renderer, ytd-compact-video-renderer"
+              )
+            ) {
               this.injectSummaryOption(node);
             }
-            
-            const videoRenderers = node.querySelectorAll?.('ytd-video-renderer, ytd-rich-item-renderer, ytd-compact-video-renderer');
-            videoRenderers?.forEach(renderer => this.injectSummaryOption(renderer));
+
+            const videoRenderers = node.querySelectorAll?.(
+              "ytd-video-renderer, ytd-rich-item-renderer, ytd-compact-video-renderer"
+            );
+            videoRenderers?.forEach((renderer) =>
+              this.injectSummaryOption(renderer)
+            );
           }
         });
       });
@@ -33,58 +43,65 @@ class YouTubeThumbnailInjector {
 
     this.observer.observe(document.body, {
       childList: true,
-      subtree: true
+      subtree: true,
     });
   }
 
   processExistingVideos() {
-    document.querySelectorAll('ytd-video-renderer, ytd-rich-item-renderer, ytd-compact-video-renderer').forEach(
-      renderer => this.injectSummaryOption(renderer)
-    );
+    document
+      .querySelectorAll(
+        "ytd-video-renderer, ytd-rich-item-renderer, ytd-compact-video-renderer"
+      )
+      .forEach((renderer) => this.injectSummaryOption(renderer));
   }
 
   injectSummaryOption(videoRenderer) {
     const videoId = this.extractVideoId(videoRenderer);
-    console.log('InANutshell: Processing video renderer, videoId:', videoId);
-    
+    console.log("InANutshell: Processing video renderer, videoId:", videoId);
+
     if (!videoId) {
-      console.log('InANutshell: No video ID found, skipping');
-      return;
-    }
-    
-    if (this.processedVideos.has(videoId)) {
-      console.log('InANutshell: Video already processed:', videoId);
+      console.log("InANutshell: No video ID found, skipping");
       return;
     }
 
-    const menuRenderer = videoRenderer.querySelector('ytd-menu-renderer');
-    console.log('InANutshell: Menu renderer found:', !!menuRenderer);
-    
+    if (this.processedVideos.has(videoId)) {
+      console.log("InANutshell: Video already processed:", videoId);
+      return;
+    }
+
+    const menuRenderer = videoRenderer.querySelector("ytd-menu-renderer");
+    console.log("InANutshell: Menu renderer found:", !!menuRenderer);
+
     if (!menuRenderer) {
       // Try alternative approach - add button to metadata area
-      console.log('InANutshell: No menu renderer, trying alternative injection');
+      console.log(
+        "InANutshell: No menu renderer, trying alternative injection"
+      );
       this.injectAlternativeButton(videoRenderer, videoId);
       return;
     }
 
     this.processedVideos.add(videoId);
 
-    const topLevelButtons = menuRenderer.querySelector('#top-level-buttons');
-    console.log('InANutshell: Top level buttons found:', !!topLevelButtons);
-    
+    const topLevelButtons = menuRenderer.querySelector("#top-level-buttons");
+    console.log("InANutshell: Top level buttons found:", !!topLevelButtons);
+
     if (!topLevelButtons) {
-      console.log('InANutshell: No top-level-buttons, trying alternative injection');
+      console.log(
+        "InANutshell: No top-level-buttons, trying alternative injection"
+      );
       this.injectAlternativeButton(videoRenderer, videoId);
       return;
     }
-    
-    if (topLevelButtons.querySelector('.inanutshell-thumbnail-btn')) {
-      console.log('InANutshell: Button already exists');
+
+    if (topLevelButtons.querySelector(".inanutshell-thumbnail-btn")) {
+      console.log("InANutshell: Button already exists");
       return;
     }
 
-    const customButton = document.createElement('ytd-toggle-button-renderer');
-    customButton.className = 'style-scope ytd-menu-renderer inanutshell-thumbnail-btn';
+    const customButton = document.createElement("ytd-toggle-button-renderer");
+    customButton.className =
+      "style-scope ytd-menu-renderer inanutshell-thumbnail-btn";
     customButton.innerHTML = `
       <a class="yt-simple-endpoint style-scope ytd-toggle-button-renderer">
         <yt-icon-button class="style-scope ytd-toggle-button-renderer">
@@ -95,42 +112,49 @@ class YouTubeThumbnailInjector {
       </a>
     `;
 
-    customButton.addEventListener('click', (e) => {
+    customButton.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      console.log('=== MAIN PAGE BUTTON CLICKED ===');
-      
+      console.log("=== MAIN PAGE BUTTON CLICKED ===");
+
       // Re-extract video ID fresh at click time
       const freshVideoId = this.extractVideoId(videoRenderer);
-      console.log('Button fresh video ID:', freshVideoId);
-      console.log('Button original video ID:', videoId);
-      console.log('Button video renderer:', videoRenderer);
-      console.log('Button element:', e.currentTarget);
-      
+      console.log("Button fresh video ID:", freshVideoId);
+      console.log("Button original video ID:", videoId);
+      console.log("Button video renderer:", videoRenderer);
+      console.log("Button element:", e.currentTarget);
+
       // Use fresh video ID if available, otherwise fall back to original
       const finalVideoId = freshVideoId || videoId;
-      console.log('Using final video ID:', finalVideoId);
-      
+      console.log("Using final video ID:", finalVideoId);
+
       this.handleThumbnailSummarize(finalVideoId, videoRenderer);
     });
 
     topLevelButtons.appendChild(customButton);
-    console.log('InANutshell: Added summary button to video:', videoId);
+    console.log("InANutshell: Added summary button to video:", videoId);
   }
 
   injectAlternativeButton(videoRenderer, videoId) {
-    console.log('InANutshell: Trying alternative button injection for:', videoId);
-    
+    console.log(
+      "InANutshell: Trying alternative button injection for:",
+      videoId
+    );
+
     // Try to find the metadata area where we can add a floating button
-    const metadata = videoRenderer.querySelector('#metadata, #meta, ytd-video-meta-block, #details');
+    const metadata = videoRenderer.querySelector(
+      "#metadata, #meta, ytd-video-meta-block, #details"
+    );
     if (!metadata) {
-      console.log('InANutshell: No metadata area found for alternative injection');
+      console.log(
+        "InANutshell: No metadata area found for alternative injection"
+      );
       return;
     }
 
     // Create a floating button that appears on hover
-    const floatingButton = document.createElement('div');
-    floatingButton.className = 'inanutshell-floating-btn';
+    const floatingButton = document.createElement("div");
+    floatingButton.className = "inanutshell-floating-btn";
     floatingButton.innerHTML = `
       <button style="
         position: absolute;
@@ -153,51 +177,64 @@ class YouTubeThumbnailInjector {
     `;
 
     // Show button on hover
-    videoRenderer.addEventListener('mouseenter', () => {
-      floatingButton.querySelector('button').style.opacity = '1';
-    });
-    
-    videoRenderer.addEventListener('mouseleave', () => {
-      floatingButton.querySelector('button').style.opacity = '0';
+    videoRenderer.addEventListener("mouseenter", () => {
+      floatingButton.querySelector("button").style.opacity = "1";
     });
 
-    floatingButton.addEventListener('click', (e) => {
+    videoRenderer.addEventListener("mouseleave", () => {
+      floatingButton.querySelector("button").style.opacity = "0";
+    });
+
+    floatingButton.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
+
       // Re-extract video ID fresh at click time
       const freshVideoId = this.extractVideoId(videoRenderer);
       const finalVideoId = freshVideoId || videoId;
-      console.log('Floating button clicked - fresh video ID:', freshVideoId, 'final:', finalVideoId);
-      
+      console.log(
+        "Floating button clicked - fresh video ID:",
+        freshVideoId,
+        "final:",
+        finalVideoId
+      );
+
       this.handleThumbnailSummarize(finalVideoId, videoRenderer);
     });
 
     // Make the video renderer container relative positioned
-    videoRenderer.style.position = 'relative';
+    videoRenderer.style.position = "relative";
     videoRenderer.appendChild(floatingButton);
-    
+
     this.processedVideos.add(videoId);
-    console.log('InANutshell: Added floating summary button to video:', videoId);
+    console.log(
+      "InANutshell: Added floating summary button to video:",
+      videoId
+    );
   }
 
   setupMenuClickListener() {
-    console.log('InANutshell: Setting up three-dots menu click listener...');
-    
+    console.log("InANutshell: Setting up three-dots menu click listener...");
+
     // Listen for clicks on three-dots menu buttons (both main page and watch page)
-    document.addEventListener('click', (e) => {
-      const menuButton = e.target.closest([
-        'ytd-menu-renderer button',                    // Main page menu buttons
-        'yt-icon-button button',                      // Generic icon buttons
-        '[aria-label*="More"]',                       // More actions buttons
-        '[aria-label*="Action menu"]',                // Action menu buttons
-        'button-view-model button',                   // Watch page sidebar buttons
-        '.yt-spec-button-shape-next[aria-label*="More"]', // New button structure
-        'button[aria-label="More actions"]'           // Specific watch page buttons
-      ].join(', '));
-      
+    document.addEventListener("click", (e) => {
+      const menuButton = e.target.closest(
+        [
+          "ytd-menu-renderer button", // Main page menu buttons
+          "yt-icon-button button", // Generic icon buttons
+          '[aria-label*="More"]', // More actions buttons
+          '[aria-label*="Action menu"]', // Action menu buttons
+          "button-view-model button", // Watch page sidebar buttons
+          '.yt-spec-button-shape-next[aria-label*="More"]', // New button structure
+          'button[aria-label="More actions"]', // Specific watch page buttons
+        ].join(", ")
+      );
+
       if (menuButton) {
-        console.log('InANutshell: Menu button clicked, waiting for dropdown...', menuButton);
+        console.log(
+          "InANutshell: Menu button clicked, waiting for dropdown...",
+          menuButton
+        );
         setTimeout(() => this.injectIntoDropdownMenu(menuButton), 200);
       }
     });
@@ -205,115 +242,168 @@ class YouTubeThumbnailInjector {
 
   injectIntoDropdownMenu(clickedElement) {
     // Find the opened menu popup - prioritize sidebar video dropdowns
-    let menuPopup = document.querySelector('ytd-menu-popup-renderer');
-    
+    let menuPopup = document.querySelector("ytd-menu-popup-renderer");
+
     if (!menuPopup) {
       // For watch page sidebar videos, specifically target the popup container dropdown
-      menuPopup = document.querySelector('tp-yt-iron-dropdown.style-scope.ytd-popup-container');
+      menuPopup = document.querySelector(
+        "tp-yt-iron-dropdown.style-scope.ytd-popup-container"
+      );
     }
-    
+
     if (!menuPopup) {
       // Try other alternatives but exclude video player menus
-      menuPopup = document.querySelector([
-        'tp-yt-iron-dropdown[horizontal-align="auto"]',        // Positioned dropdown
-        '.ytd-popup-container tp-yt-iron-dropdown',            // Nested dropdown
-        'ytd-menu-popup-renderer:not([hidden])'               // Fallback
-      ].join(', '));
+      menuPopup = document.querySelector(
+        [
+          'tp-yt-iron-dropdown[horizontal-align="auto"]', // Positioned dropdown
+          ".ytd-popup-container tp-yt-iron-dropdown", // Nested dropdown
+          "ytd-menu-popup-renderer:not([hidden])", // Fallback
+        ].join(", ")
+      );
     }
-    
-    console.log('InANutshell: Found menu popup:', !!menuPopup, menuPopup);
-    console.log('InANutshell: All potential dropdowns:', document.querySelectorAll([
-      'ytd-menu-popup-renderer',
-      'tp-yt-iron-dropdown',
-      '.ytd-popup-container',
-      '[role="menu"]'
-    ].join(', ')));
-    
+
+    console.log("InANutshell: Found menu popup:", !!menuPopup, menuPopup);
+    console.log(
+      "InANutshell: All potential dropdowns:",
+      document.querySelectorAll(
+        [
+          "ytd-menu-popup-renderer",
+          "tp-yt-iron-dropdown",
+          ".ytd-popup-container",
+          '[role="menu"]',
+        ].join(", ")
+      )
+    );
+
     if (!menuPopup) {
-      console.log('InANutshell: No menu popup found with any selector');
+      console.log("InANutshell: No menu popup found with any selector");
       return;
     }
 
     // Check if we already injected our option
-    if (menuPopup.querySelector('.inanutshell-menu-option')) {
-      console.log('InANutshell: Menu option already exists');
+    if (menuPopup.querySelector(".inanutshell-menu-option")) {
+      console.log("InANutshell: Menu option already exists");
       return;
     }
 
     // Find the video ID from the nearest video container (multiple page types)
-    let videoContainer = clickedElement.closest([
-      'ytd-video-renderer',           // Main page video cards
-      'ytd-rich-item-renderer',       // Grid view items
-      'ytd-compact-video-renderer',   // Watch page sidebar videos
-      'ytd-video-meta-block',         // Alternative container
-      '.ytd-watch-next-secondary-results-renderer' // Watch page container
-    ].join(', '));
-    
-    console.log('InANutshell: Container from closest():', videoContainer);
-    console.log('InANutshell: Clicked element path:', clickedElement, clickedElement.parentElement, clickedElement.parentElement?.parentElement);
-    
+    let videoContainer = clickedElement.closest(
+      [
+        "ytd-video-renderer", // Main page video cards
+        "ytd-rich-item-renderer", // Grid view items
+        "ytd-compact-video-renderer", // Watch page sidebar videos
+        "ytd-video-meta-block", // Alternative container
+        ".ytd-watch-next-secondary-results-renderer", // Watch page container
+      ].join(", ")
+    );
+
+    console.log("InANutshell: Container from closest():", videoContainer);
+    console.log(
+      "InANutshell: Clicked element path:",
+      clickedElement,
+      clickedElement.parentElement,
+      clickedElement.parentElement?.parentElement
+    );
+
     // For watch page, if we can't find the container, try a broader search
     if (!videoContainer) {
-      console.log('InANutshell: No container from closest(), trying broader search...');
+      console.log(
+        "InANutshell: No container from closest(), trying broader search..."
+      );
       // Look in the sidebar area specifically
-      const sidebarArea = document.querySelector('#related, #secondary, ytd-watch-next-secondary-results-renderer');
+      const sidebarArea = document.querySelector(
+        "#related, #secondary, ytd-watch-next-secondary-results-renderer"
+      );
       if (sidebarArea) {
-        const allVideoContainers = sidebarArea.querySelectorAll('ytd-compact-video-renderer, ytd-video-renderer');
-        console.log('InANutshell: Found', allVideoContainers.length, 'video containers in sidebar');
-        
+        const allVideoContainers = sidebarArea.querySelectorAll(
+          "ytd-compact-video-renderer, ytd-video-renderer"
+        );
+        console.log(
+          "InANutshell: Found",
+          allVideoContainers.length,
+          "video containers in sidebar"
+        );
+
         // Find the one that contains our clicked button
         for (let container of allVideoContainers) {
-          console.log('InANutshell: Checking if container contains clicked element:', container.contains(clickedElement));
+          console.log(
+            "InANutshell: Checking if container contains clicked element:",
+            container.contains(clickedElement)
+          );
           if (container.contains(clickedElement)) {
             videoContainer = container;
-            console.log('InANutshell: Found containing video container via broader search');
+            console.log(
+              "InANutshell: Found containing video container via broader search"
+            );
             break;
           }
         }
       }
     }
-    
+
     if (!videoContainer) {
-      console.log('InANutshell: Could not find video container for menu');
-      console.log('InANutshell: Clicked element:', clickedElement);
-      console.log('InANutshell: Clicked element parents:', clickedElement.parentElement, clickedElement.parentElement?.parentElement);
+      console.log("InANutshell: Could not find video container for menu");
+      console.log("InANutshell: Clicked element:", clickedElement);
+      console.log(
+        "InANutshell: Clicked element parents:",
+        clickedElement.parentElement,
+        clickedElement.parentElement?.parentElement
+      );
       return;
     }
 
-    console.log('InANutshell: Found video container:', videoContainer);
-    console.log('InANutshell: Video container HTML preview:', videoContainer.outerHTML.substring(0, 200));
-    
+    console.log("InANutshell: Found video container:", videoContainer);
+    console.log(
+      "InANutshell: Video container HTML preview:",
+      videoContainer.outerHTML.substring(0, 200)
+    );
+
     // Debug: Show all sidebar videos and their IDs
-    const allSidebarVideos = document.querySelectorAll('#related ytd-compact-video-renderer, #secondary ytd-compact-video-renderer');
-    console.log('InANutshell: All sidebar videos found:', allSidebarVideos.length);
+    const allSidebarVideos = document.querySelectorAll(
+      "#related ytd-compact-video-renderer, #secondary ytd-compact-video-renderer"
+    );
+    console.log(
+      "InANutshell: All sidebar videos found:",
+      allSidebarVideos.length
+    );
     allSidebarVideos.forEach((video, index) => {
       const debugId = this.extractVideoId(video);
       console.log(`InANutshell: Sidebar video ${index + 1}:`, debugId, video);
     });
-    
+
     const videoId = this.extractVideoId(videoContainer);
-    console.log('InANutshell: Extracted video ID:', videoId);
-    
+    console.log("InANutshell: Extracted video ID:", videoId);
+
     if (!videoId) {
-      console.log('InANutshell: Could not extract video ID for menu');
-      console.log('InANutshell: Video container HTML:', videoContainer.innerHTML.substring(0, 300));
-      console.log('InANutshell: Video links in container:', videoContainer.querySelectorAll('a[href*="/watch"]'));
+      console.log("InANutshell: Could not extract video ID for menu");
+      console.log(
+        "InANutshell: Video container HTML:",
+        videoContainer.innerHTML.substring(0, 300)
+      );
+      console.log(
+        "InANutshell: Video links in container:",
+        videoContainer.querySelectorAll('a[href*="/watch"]')
+      );
       return;
     }
 
-    console.log('InANutshell: Injecting summarize option into dropdown for video:', videoId);
+    console.log(
+      "InANutshell: Injecting summarize option into dropdown for video:",
+      videoId
+    );
 
     // Create our menu item with simpler, more direct approach
-    const menuItem = document.createElement('ytd-menu-service-item-renderer');
-    menuItem.className = 'style-scope ytd-menu-popup-renderer inanutshell-menu-option';
-    menuItem.setAttribute('system-icons', '');
-    menuItem.setAttribute('role', 'menuitem');
-    menuItem.setAttribute('use-icons', '');
-    menuItem.setAttribute('tabindex', '-1');
-    
+    const menuItem = document.createElement("ytd-menu-service-item-renderer");
+    menuItem.className =
+      "style-scope ytd-menu-popup-renderer inanutshell-menu-option";
+    menuItem.setAttribute("system-icons", "");
+    menuItem.setAttribute("role", "menuitem");
+    menuItem.setAttribute("use-icons", "");
+    menuItem.setAttribute("tabindex", "-1");
+
     // Store the video ID directly on the menu item
     menuItem.dataset.videoId = videoId;
-    
+
     menuItem.innerHTML = `
       <tp-yt-paper-item class="style-scope ytd-menu-service-item-renderer" role="option" tabindex="-1">
         <div style="display: flex; align-items: center; padding: 8px 16px; width: 100%;">
@@ -324,200 +414,276 @@ class YouTubeThumbnailInjector {
     `;
 
     // Add click handler
-    menuItem.addEventListener('click', (e) => {
+    menuItem.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
+
       // Re-extract video ID fresh at click time to avoid stale data
       const freshVideoId = this.extractVideoId(videoContainer);
-      console.log('InANutshell: Menu item clicked, fresh video ID:', freshVideoId);
-      console.log('InANutshell: Stored video ID was:', e.currentTarget.dataset.videoId);
-      console.log('InANutshell: Original video ID was:', videoId);
-      
+      console.log(
+        "InANutshell: Menu item clicked, fresh video ID:",
+        freshVideoId
+      );
+      console.log(
+        "InANutshell: Stored video ID was:",
+        e.currentTarget.dataset.videoId
+      );
+      console.log("InANutshell: Original video ID was:", videoId);
+
       // Close the menu
-      const dropdown = document.querySelector('tp-yt-iron-dropdown[opened]');
+      const dropdown = document.querySelector("tp-yt-iron-dropdown[opened]");
       if (dropdown) {
-        dropdown.removeAttribute('opened');
+        dropdown.removeAttribute("opened");
       }
-      
+
       // Use the fresh video ID if available, otherwise fall back to stored
       const finalVideoId = freshVideoId || e.currentTarget.dataset.videoId;
-      console.log('InANutshell: Using final video ID:', finalVideoId);
-      
+      console.log("InANutshell: Using final video ID:", finalVideoId);
+
       this.handleThumbnailSummarize(finalVideoId, videoContainer);
     });
 
     // Insert at the top of the menu - handle different dropdown types
     let insertionSuccess = false;
-    
+
     // Try main page structure first (#items container)
-    const itemsContainer = menuPopup.querySelector('#items, tp-yt-paper-listbox');
+    const itemsContainer = menuPopup.querySelector(
+      "#items, tp-yt-paper-listbox"
+    );
     if (itemsContainer) {
-      const firstMenuItem = itemsContainer.querySelector('ytd-menu-service-item-renderer, yt-button-view-model');
+      const firstMenuItem = itemsContainer.querySelector(
+        "ytd-menu-service-item-renderer, yt-button-view-model"
+      );
       if (firstMenuItem) {
         itemsContainer.insertBefore(menuItem, firstMenuItem);
         insertionSuccess = true;
-        console.log('InANutshell: Successfully injected into items container for video:', videoId);
+        console.log(
+          "InANutshell: Successfully injected into items container for video:",
+          videoId
+        );
       }
     }
-    
+
     // Try watch page structure (yt-list-view-model)
     if (!insertionSuccess) {
-      const listViewModel = menuPopup.querySelector('yt-list-view-model[role="menu"]') || 
-                           document.querySelector('yt-list-view-model[role="menu"]');
+      const listViewModel =
+        menuPopup.querySelector('yt-list-view-model[role="menu"]') ||
+        document.querySelector('yt-list-view-model[role="menu"]');
       if (listViewModel) {
-        const firstListItem = listViewModel.querySelector('yt-button-view-model, [role="menuitem"]');
+        const firstListItem = listViewModel.querySelector(
+          'yt-button-view-model, [role="menuitem"]'
+        );
         if (firstListItem) {
           listViewModel.insertBefore(menuItem, firstListItem);
           insertionSuccess = true;
-          console.log('InANutshell: Successfully injected into list view model for video:', videoId);
+          console.log(
+            "InANutshell: Successfully injected into list view model for video:",
+            videoId
+          );
         }
       }
     }
-    
+
     // Final fallback - try direct insertion
     if (!insertionSuccess) {
-      const allMenuItems = menuPopup.querySelectorAll('ytd-menu-service-item-renderer, yt-button-view-model, [role="menuitem"]');
+      const allMenuItems = menuPopup.querySelectorAll(
+        'ytd-menu-service-item-renderer, yt-button-view-model, [role="menuitem"]'
+      );
       if (allMenuItems.length > 0) {
         allMenuItems[0].parentNode.insertBefore(menuItem, allMenuItems[0]);
         insertionSuccess = true;
-        console.log('InANutshell: Fallback injection successful for video:', videoId);
+        console.log(
+          "InANutshell: Fallback injection successful for video:",
+          videoId
+        );
       }
     }
-    
+
     if (!insertionSuccess) {
-      console.log('InANutshell: Could not inject menu item anywhere');
-      console.log('InANutshell: Menu popup structure:', menuPopup.innerHTML.substring(0, 500));
+      console.log("InANutshell: Could not inject menu item anywhere");
+      console.log(
+        "InANutshell: Menu popup structure:",
+        menuPopup.innerHTML.substring(0, 500)
+      );
     }
   }
 
-  extractVideoId(videoRenderer) {
-    // Try multiple selectors for different YouTube layouts
+  extractVideoId(clickedElement) {
+    // First try to get URL from the clicked element's href
+    if (clickedElement.href) {
+      const match = clickedElement.href.match(/[?&]v=([^&]+)/);
+      if (match) {
+        console.log(
+          "InANutshell: Found video ID from clicked element:",
+          match[1]
+        );
+        return match[1];
+      }
+    }
+
+    // Then try parent elements
+    let element = clickedElement;
+    while (element && element !== document) {
+      if (element.href) {
+        const match = element.href.match(/[?&]v=([^&]+)/);
+        if (match) {
+          console.log(
+            "InANutshell: Found video ID from parent element:",
+            match[1]
+          );
+          return match[1];
+        }
+      }
+      element = element.parentElement;
+    }
+
+    // Fall back to searching within the clicked element's container
     const linkSelectors = [
-      'a#thumbnail',                              // Standard thumbnail link
-      'a#video-title-link',                       // Standard title link  
-      'a.ytd-thumbnail',                          // Generic thumbnail link
-      'a.yt-lockup-view-model-wiz__content-image', // Watch page sidebar image link
-      'a.yt-lockup-metadata-view-model-wiz__title', // Watch page sidebar title link
-      'a[href*="/watch"]'                         // Any link containing /watch
+      "a#thumbnail", // Standard thumbnail link
+      "a#video-title-link", // Standard title link
+      "a.ytd-thumbnail", // Generic thumbnail link
+      "a.yt-lockup-view-model-wiz__content-image", // Watch page sidebar image link
+      "a.yt-lockup-metadata-view-model-wiz__title", // Watch page sidebar title link
+      'a[href*="/watch"]', // Any link containing /watch
     ];
-    
+
     for (const selector of linkSelectors) {
-      const link = videoRenderer.querySelector(selector);
+      const link = clickedElement.querySelector(selector);
       if (link?.href) {
         const match = link.href.match(/[?&]v=([^&]+)/);
         if (match) {
-          console.log('InANutshell: Found video ID using selector:', selector, match[1]);
+          console.log(
+            "InANutshell: Found video ID using fallback selector:",
+            selector,
+            match[1]
+          );
           return match[1];
         }
       }
     }
-    
-    console.log('InANutshell: No video ID found with any selector');
+
+    console.log("InANutshell: No video ID found with any method");
     return null;
   }
 
   async handleThumbnailSummarize(videoId, videoRenderer) {
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    
+
     try {
       this.contentScript.showLoadingModal();
-      
-      console.log('=== IFRAME TRANSCRIPT EXTRACTION ===');
-      console.log('Video ID:', videoId);
-      console.log('Video URL:', videoUrl);
-      
+
+      console.log("=== IFRAME TRANSCRIPT EXTRACTION ===");
+      console.log("Video ID:", videoId);
+      console.log("Video URL:", videoUrl);
+
       // Extract transcript via UI automation
       const result = await this.extractTranscriptViaUIAutomation(videoId);
-      
-      console.log('=== TRANSCRIPT EXTRACTED SUCCESSFULLY ===');
-      console.log('Video ID:', videoId);
-      console.log('Transcript length:', result.transcript.length);
-      console.log('Source:', result.source);
-      console.log('Transcript preview:', result.transcript.substring(0, 200) + '...');
-      console.log('==========================================');
-      
+
+      console.log("=== TRANSCRIPT EXTRACTED SUCCESSFULLY ===");
+      console.log("Video ID:", videoId);
+      console.log("Transcript length:", result.transcript.length);
+      console.log("Source:", result.source);
+      console.log(
+        "Transcript preview:",
+        result.transcript.substring(0, 200) + "..."
+      );
+      console.log("==========================================");
+
       // Store in global variable for easy access
       window.lastExtractedTranscript = result;
-      console.log('✅ Real transcript stored in window.lastExtractedTranscript');
-      
+      console.log(
+        "✅ Real transcript stored in window.lastExtractedTranscript"
+      );
+
       this.contentScript.hideLoadingModal();
-      this.contentScript.showLoadingModal('Generating AI Summary...');
-      
+      this.contentScript.showLoadingModal("Generating AI Summary...");
+
       try {
         // Send transcript to Gemini for summarization
-        console.log('Sending thumbnail transcript to Gemini for summarization...');
-        const summary = await this.contentScript.summarizer.summarize(result.transcript);
-        
-        console.log('✅ Thumbnail summary generated:', summary.substring(0, 100) + '...');
-        
+        console.log(
+          "Sending thumbnail transcript to Gemini for summarization..."
+        );
+        const summary = await this.contentScript.summarizer.summarize(
+          result.transcript
+        );
+
+        console.log(
+          "✅ Thumbnail summary generated:",
+          summary.substring(0, 100) + "..."
+        );
+
         // Show summary result
         this.contentScript.hideLoadingModal();
         this.contentScript.showSummaryModal({
-          title: 'Video Summary',
+          title: "Video Summary",
           content: summary,
           transcript: result.transcript,
           videoId: videoId,
-          timestamp: result.timestamp
+          timestamp: result.timestamp,
         });
-        
       } catch (error) {
-        console.error('Thumbnail summarization failed:', error);
+        console.error("Thumbnail summarization failed:", error);
         // Fallback to showing raw transcript
         this.contentScript.hideLoadingModal();
         this.contentScript.showSummaryModal({
-          title: 'Transcript (Summarization Failed)',
+          title: "Transcript (Summarization Failed)",
           content: result.transcript,
           error: error.message,
           videoId: videoId,
-          timestamp: result.timestamp
+          timestamp: result.timestamp,
         });
       }
-      
     } catch (error) {
-      console.error('Transcript extraction failed:', error);
+      console.error("Transcript extraction failed:", error);
       this.contentScript.hideLoadingModal();
-      this.contentScript.showErrorMessage(`Failed to extract transcript: ${error.message}`);
+      this.contentScript.showErrorMessage(
+        `Failed to extract transcript: ${error.message}`
+      );
     }
   }
 
   async extractTranscriptViaUIAutomation(videoId) {
     console.log("Starting UI automation transcript extraction for:", videoId);
-    
+
     // Always navigate to the specific video to ensure we're getting the right transcript
     // Don't rely on current page URL since thumbnail clicks don't immediately change URL
-    console.log('Navigating to video for UI automation (forced navigation for accuracy)');
+    console.log(
+      "Navigating to video for UI automation (forced navigation for accuracy)"
+    );
     return this.navigateAndClickTranscript(videoId);
   }
-  
+
   getCurrentVideoId() {
     const url = window.location.href;
     const match = url.match(/[?&]v=([^&]+)/);
     return match ? match[1] : null;
   }
-  
+
   async clickTranscriptButton(videoId) {
-    console.log('Attempting to click transcript button via UI automation');
-    
+    console.log("Attempting to click transcript button via UI automation");
+
     return new Promise((resolve, reject) => {
       // Step 1: Look for the "More" button (three dots or "...more")
       const findMoreButton = () => {
         const moreSelectors = [
-          'tp-yt-paper-button#expand',                    // New: specific expand button
-          '#expand',                                      // Existing: any element with expand ID
-          'tp-yt-paper-button.ytd-text-inline-expander', // New: by class
+          "tp-yt-paper-button#expand", // New: specific expand button
+          "#expand", // Existing: any element with expand ID
+          "tp-yt-paper-button.ytd-text-inline-expander", // New: by class
           'button[aria-label*="more"]',
-          'button[aria-label*="More"]', 
+          'button[aria-label*="More"]',
           'button[aria-label*="Show more"]',
-          '.more-button',
-          'tp-yt-paper-button[aria-label*="more"]'
+          ".more-button",
+          'tp-yt-paper-button[aria-label*="more"]',
         ];
-        
+
         for (const selector of moreSelectors) {
           const button = document.querySelector(selector);
           if (button) {
             // For #expand button, don't require visibility check since it might be hidden but still clickable
-            if (selector.includes('#expand') || selector.includes('tp-yt-paper-button#expand')) {
+            if (
+              selector.includes("#expand") ||
+              selector.includes("tp-yt-paper-button#expand")
+            ) {
               console.log('Found "More" button (may be hidden):', selector);
               return button;
             }
@@ -530,7 +696,7 @@ class YouTubeThumbnailInjector {
         }
         return null;
       };
-      
+
       // Step 2: Look for transcript button after clicking more
       const findTranscriptButton = () => {
         const transcriptSelectors = [
@@ -538,72 +704,77 @@ class YouTubeThumbnailInjector {
           'button[aria-label*="Transcript"]',
           'yt-formatted-string:contains("Show transcript")',
           '[role="menuitem"]:contains("transcript")',
-          '.transcript-button'
+          ".transcript-button",
         ];
-        
+
         for (const selector of transcriptSelectors) {
           const button = document.querySelector(selector);
           if (button && button.offsetParent !== null) {
-            console.log('Found transcript button:', selector);
+            console.log("Found transcript button:", selector);
             return button;
           }
         }
         return null;
       };
-      
+
       // Step 3: Extract transcript text from the panel
       const extractTranscriptText = () => {
         const transcriptSelectors = [
-          '#transcript-container',
-          '.transcript-container', 
-          '[data-target-id="engagement-panel-structured-description"] .segment-text',
-          '#structured-description .segment-text',
-          '.ytd-transcript-segment-renderer .segment-text'
+          "#transcript-container",
+          ".transcript-container",
+          // '[data-target-id="engagement-panel-structured-description"] .segment-text',
+          // '#structured-description .segment-text',
+          ".ytd-transcript-segment-renderer .segment-text",
         ];
-        
+
         for (const selector of transcriptSelectors) {
           const container = document.querySelector(selector);
           if (container) {
             // Extract all text segments
-            const segments = container.querySelectorAll('.segment-text, [class*="segment"]');
+            const segments = container.querySelectorAll(
+              '.segment-text, [class*="segment"]'
+            );
             if (segments.length > 0) {
               const transcript = Array.from(segments)
-                .map(seg => seg.textContent.trim())
-                .filter(text => text.length > 0)
-                .join(' ');
-              
+                .map((seg) => seg.textContent.trim())
+                .filter((text) => text.length > 0)
+                .join(" ");
+
               if (transcript.length > 50) {
-                console.log('Extracted transcript via UI:', transcript.substring(0, 100) + '...');
+                console.log(
+                  "Extracted transcript via UI:",
+                  transcript.substring(0, 100) + "..."
+                );
                 return transcript;
               }
             }
           }
         }
-        
+
         // Fallback: get all visible text that looks like transcript
         const allText = document.body.innerText;
         if (allText.length > 200) {
-          console.log('Using fallback text extraction');
+          console.log("Using fallback text extraction");
           return allText; // Return full text, don't truncate
         }
-        
+
         return null;
       };
-      
+
       // Execute the workflow
       const executeWorkflow = () => {
         let step = 0;
         const maxSteps = 10;
-        
+
         const nextStep = () => {
           step++;
           if (step > maxSteps) {
-            reject(new Error('UI automation workflow timed out'));
+            reject(new Error("UI automation workflow timed out"));
             return;
           }
-          
+
           console.log(`UI automation step ${step}/${maxSteps}`);
-          
+
           // Try to find and click more button first
           const moreButton = findMoreButton();
           if (moreButton && !moreButton.clicked) {
@@ -613,17 +784,17 @@ class YouTubeThumbnailInjector {
             setTimeout(nextStep, 1000); // Wait for menu to appear
             return;
           }
-          
+
           // Try to find and click transcript button
           const transcriptButton = findTranscriptButton();
           if (transcriptButton && !transcriptButton.clicked) {
-            console.log('Clicking transcript button...');
+            console.log("Clicking transcript button...");
             transcriptButton.clicked = true;
             transcriptButton.click();
             setTimeout(nextStep, 2000); // Wait for transcript to load
             return;
           }
-          
+
           // Try to extract transcript text
           const transcript = extractTranscriptText();
           if (transcript) {
@@ -631,35 +802,51 @@ class YouTubeThumbnailInjector {
               videoId: videoId,
               transcript: transcript,
               timestamp: new Date().toISOString(),
-              source: 'ui-automation',
-              language: 'en'
+              source: "ui-automation",
+              language: "en",
             });
             return;
           }
-          
+
           // If nothing found, try again
           setTimeout(nextStep, 1000);
         };
-        
+
         nextStep();
       };
-      
+
       // Start the workflow
       executeWorkflow();
-      
+
       // Overall timeout
       setTimeout(() => {
-        reject(new Error('UI automation timed out after 30 seconds'));
+        reject(new Error("UI automation timed out after 30 seconds"));
       }, 30000);
     });
   }
-  
+
   async navigateAndClickTranscript(videoId) {
-    console.log('Creating iframe for UI automation navigation');
-    
+    console.log(
+      "Creating iframe for UI automation navigation for videoId:",
+      videoId
+    );
+
+    // Clean up any existing iframe first
+    this.cleanupIframe();
+
+    // Update current video ID
+    this.currentVideoId = videoId;
+
     return new Promise((resolve, reject) => {
+      // Check if this request is still valid (in case user clicked another video)
+      if (this.currentVideoId !== videoId) {
+        console.log("Request cancelled: user clicked on different video");
+        reject(new Error("Request cancelled"));
+        return;
+      }
+
       // Create iframe that will load the video page
-      const iframe = document.createElement('iframe');
+      const iframe = document.createElement("iframe");
       iframe.src = `https://www.youtube.com/watch?v=${videoId}`;
       iframe.style.cssText = `
         position: fixed;
@@ -673,94 +860,123 @@ class YouTubeThumbnailInjector {
         opacity: 0;
         pointer-events: none;
       `;
-      
+
+      // Store reference to current iframe
+      this.currentIframe = iframe;
+
       iframe.onload = () => {
-        console.log('Iframe loaded, attempting UI automation...');
-        
+        console.log("Iframe loaded, attempting UI automation...");
+
         try {
           // Try to access iframe content and perform clicks
-          const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-          
+          const iframeDoc =
+            iframe.contentDocument || iframe.contentWindow.document;
+
           // Pause the video immediately
           setTimeout(() => {
-            const video = iframeDoc.querySelector('video');
+            const video = iframeDoc.querySelector("video");
             if (video) {
               video.pause();
               video.muted = true; // Also mute it
-              console.log('Video paused and muted');
+              console.log("Video paused and muted");
             }
           }, 1000);
-          
+
           // Simple automation within iframe
           setTimeout(() => {
             // Look for more button in iframe
-            const moreBtn = iframeDoc.querySelector('button[aria-label*="more"], #expand');
+            const moreBtn = iframeDoc.querySelector(
+              'button[aria-label*="more"], #expand'
+            );
             if (moreBtn) {
-              console.log('Clicking more button in iframe');
+              console.log("Clicking more button in iframe");
               moreBtn.click();
-              
+
               setTimeout(() => {
                 // Look for transcript button
-                const transcriptBtn = iframeDoc.querySelector('button[aria-label*="transcript"]');
+                const transcriptBtn = iframeDoc.querySelector(
+                  'button[aria-label*="transcript"]'
+                );
                 if (transcriptBtn) {
-                  console.log('Clicking transcript button in iframe');
+                  console.log("Clicking transcript button in iframe");
                   transcriptBtn.click();
-                  
+
                   setTimeout(() => {
+                    // Check if this is still the current request
+                    if (this.currentVideoId !== videoId) {
+                      this.cleanupIframe();
+                      reject(new Error("Request superseded by new video"));
+                      return;
+                    }
+
                     // Extract transcript
                     const transcript = iframeDoc.body.innerText;
                     if (transcript.length > 100) {
-                      document.body.removeChild(iframe);
+                      this.cleanupIframe();
                       resolve({
                         videoId: videoId,
                         transcript: transcript,
                         timestamp: new Date().toISOString(),
-                        source: 'iframe-ui-automation',
-                        language: 'en'
+                        source: "iframe-ui-automation",
+                        language: "en",
                       });
                     } else {
-                      document.body.removeChild(iframe);
-                      reject(new Error('Could not extract transcript from iframe'));
+                      this.cleanupIframe();
+                      reject(
+                        new Error("Could not extract transcript from iframe")
+                      );
                     }
                   }, 3000);
                 } else {
-                  document.body.removeChild(iframe);
-                  reject(new Error('Transcript button not found in iframe'));
+                  this.cleanupIframe();
+                  reject(new Error("Transcript button not found in iframe"));
                 }
               }, 2000);
             } else {
-              document.body.removeChild(iframe);
-              reject(new Error('More button not found in iframe'));
+              this.cleanupIframe();
+              reject(new Error("More button not found in iframe"));
             }
           }, 3000);
-          
         } catch (error) {
-          document.body.removeChild(iframe);
-          reject(new Error('Cannot access iframe content due to CORS: ' + error.message));
+          this.cleanupIframe();
+          reject(
+            new Error(
+              "Cannot access iframe content due to CORS: " + error.message
+            )
+          );
         }
       };
-      
+
       iframe.onerror = () => {
-        document.body.removeChild(iframe);
-        reject(new Error('Failed to load video in iframe'));
+        this.cleanupIframe();
+        reject(new Error("Failed to load video in iframe"));
       };
-      
+
       document.body.appendChild(iframe);
-      
+
       // Timeout fallback
       setTimeout(() => {
-        if (iframe.parentNode) {
-          document.body.removeChild(iframe);
+        if (this.currentVideoId === videoId) {
+          this.cleanupIframe();
+          reject(new Error("Iframe UI automation timed out"));
         }
-        reject(new Error('Iframe UI automation timed out'));
       }, 20000);
     });
+  }
+
+  cleanupIframe() {
+    if (this.currentIframe && this.currentIframe.parentNode) {
+      this.currentIframe.parentNode.removeChild(this.currentIframe);
+      console.log("Cleaned up previous iframe");
+    }
+    this.currentIframe = null;
   }
 
   destroy() {
     if (this.observer) {
       this.observer.disconnect();
     }
+    this.cleanupIframe();
   }
 }
 
@@ -775,143 +991,154 @@ class YouTubeContentScript {
   init() {
     // Add InANutshell button to YouTube page
     this.addSummarizeButton();
-    
+
     // Initialize thumbnail menu injection
     this.thumbnailInjector.init();
-    
+
     // Listen for URL changes (YouTube is SPA)
     this.watchForUrlChanges();
   }
 
   addSummarizeButton() {
-    console.log('InANutshell: Adding summarize button...');
-    
+    console.log("InANutshell: Adding summarize button...");
+
     // Find YouTube's action buttons container
-    const actionsContainer = document.querySelector('#actions');
-    console.log('InANutshell: Actions container found:', !!actionsContainer);
-    
+    const actionsContainer = document.querySelector("#actions");
+    console.log("InANutshell: Actions container found:", !!actionsContainer);
+
     if (!actionsContainer) {
-      console.log('InANutshell: No actions container found, retrying in 2 seconds...');
+      console.log(
+        "InANutshell: No actions container found, retrying in 2 seconds..."
+      );
       setTimeout(() => this.addSummarizeButton(), 2000);
       return;
     }
 
     // Check if button already exists
-    if (document.querySelector('.inanutshell-summarize-btn')) {
-      console.log('InANutshell: Button already exists');
+    if (document.querySelector(".inanutshell-summarize-btn")) {
+      console.log("InANutshell: Button already exists");
       return;
     }
 
     // Create our summarize button
-    const button = document.createElement('button');
-    button.textContent = '🥜 Summarize';
-    button.className = 'inanutshell-summarize-btn';
-    button.style.cssText = 'margin: 0 8px; padding: 8px 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer;';
+    const button = document.createElement("button");
+    button.textContent = "🥜 Summarize";
+    button.className = "inanutshell-summarize-btn";
+    button.style.cssText =
+      "margin: 0 8px; padding: 8px 16px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer;";
     button.onclick = () => this.handleSummarize();
 
     actionsContainer.appendChild(button);
-    console.log('InANutshell: Button added successfully');
+    console.log("InANutshell: Button added successfully");
   }
 
   async handleSummarize() {
     const videoUrl = window.location.href;
-    
+
     if (!isValidYouTubeUrl(videoUrl)) {
-      this.showErrorMessage('Please navigate to a YouTube video');
+      this.showErrorMessage("Please navigate to a YouTube video");
       return;
     }
 
     // Disable button during processing
-    const button = document.querySelector('.inanutshell-summarize-btn');
+    const button = document.querySelector(".inanutshell-summarize-btn");
     if (button) {
       button.disabled = true;
-      button.textContent = '🔄 Processing...';
+      button.textContent = "🔄 Processing...";
     }
 
     try {
       // Show loading modal
       this.showLoadingModal();
-      
-      console.log('=== REAL IN-VIDEO TRANSCRIPT EXTRACTION VIA API ===');
-      console.log('Video URL:', videoUrl);
-      
+
+      console.log("=== REAL IN-VIDEO TRANSCRIPT EXTRACTION VIA API ===");
+      console.log("Video URL:", videoUrl);
+
       // Extract video ID from URL
       const videoIdMatch = videoUrl.match(/[?&]v=([^&]+)/);
       const videoId = videoIdMatch ? videoIdMatch[1] : null;
-      
+
       if (!videoId) {
-        throw new Error('Could not extract video ID from URL');
+        throw new Error("Could not extract video ID from URL");
       }
-      
+
       // Extract transcript via UI automation
-      const result = await this.thumbnailInjector.extractTranscriptViaUIAutomation(videoId);
-      console.log('=== IN-VIDEO TRANSCRIPT EXTRACTED SUCCESSFULLY ===');
-      console.log('Video ID:', result.videoId);
-      console.log('Transcript length:', result.transcript.length);
-      console.log('Language:', result.language);
-      console.log('Source:', result.source);
-      console.log('Transcript preview:', result.transcript.substring(0, 200) + '...');
-      console.log('================================================');
-      
+      const result =
+        await this.thumbnailInjector.extractTranscriptViaUIAutomation(videoId);
+      console.log("=== IN-VIDEO TRANSCRIPT EXTRACTED SUCCESSFULLY ===");
+      console.log("Video ID:", result.videoId);
+      console.log("Transcript length:", result.transcript.length);
+      console.log("Language:", result.language);
+      console.log("Source:", result.source);
+      console.log(
+        "Transcript preview:",
+        result.transcript.substring(0, 200) + "..."
+      );
+      console.log("================================================");
+
       // Store in global variable
       window.lastExtractedTranscript = result;
-      console.log('✅ Real in-video transcript stored in window.lastExtractedTranscript');
-      
+      console.log(
+        "✅ Real in-video transcript stored in window.lastExtractedTranscript"
+      );
+
       this.hideLoadingModal();
-      this.showLoadingModal('Generating AI Summary...');
-      
+      this.showLoadingModal("Generating AI Summary...");
+
       try {
         // Send transcript to Gemini for summarization
-        console.log('Sending transcript to Gemini for summarization...');
+        console.log("Sending transcript to Gemini for summarization...");
         const summary = await this.summarizer.summarize(result.transcript);
-        
-        console.log('✅ Summary generated:', summary.substring(0, 100) + '...');
-        
+
+        console.log("✅ Summary generated:", summary.substring(0, 100) + "...");
+
         // Show summary result
         this.showSummaryModal({
-          title: 'Video Summary',
+          title: "Video Summary",
           content: summary,
           transcript: result.transcript,
           videoId: result.videoId,
-          timestamp: result.timestamp
+          timestamp: result.timestamp,
         });
-        
       } catch (error) {
-        console.error('Summarization failed:', error);
+        console.error("Summarization failed:", error);
         // Fallback to showing raw transcript
         this.showSummaryModal({
-          title: 'Transcript (Summarization Failed)',
+          title: "Transcript (Summarization Failed)",
           content: result.transcript,
           error: error.message,
           videoId: result.videoId,
-          timestamp: result.timestamp
+          timestamp: result.timestamp,
         });
       }
-      
     } catch (error) {
-      console.error('Transcript extraction failed:', error);
+      console.error("Transcript extraction failed:", error);
       this.hideLoadingModal();
       this.showErrorMessage(`Failed to extract transcript: ${error.message}`);
     } finally {
       // Re-enable button
       if (button) {
         button.disabled = false;
-        button.textContent = '🥜 Summarize';
+        button.textContent = "🥜 Summarize";
       }
     }
   }
 
   showLoadingModal(customMessage = null) {
     this.hideModals(); // Remove any existing modals
-    
-    const modal = document.createElement('div');
-    modal.className = 'inanutshell-modal';
-    modal.id = 'inanutshell-loading-modal';
-    
-    const title = customMessage || 'Loading Video...';
-    const subtitle = customMessage ? 'Please wait while we process your request...' : 'Extracting captions from video player...';
-    const timeEstimate = customMessage ? 'This may take 5-10 seconds' : 'This may take 10-15 seconds';
-    
+
+    const modal = document.createElement("div");
+    modal.className = "inanutshell-modal";
+    modal.id = "inanutshell-loading-modal";
+
+    const title = customMessage || "Loading Video...";
+    const subtitle = customMessage
+      ? "Please wait while we process your request..."
+      : "Extracting captions from video player...";
+    const timeEstimate = customMessage
+      ? "This may take 5-10 seconds"
+      : "This may take 10-15 seconds";
+
     modal.innerHTML = `
       <div class="inanutshell-modal-content">
         <div class="inanutshell-loading">
@@ -922,21 +1149,21 @@ class YouTubeContentScript {
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(modal);
   }
 
   showSummaryModal(data) {
     this.hideModals(); // Remove any existing modals
-    
-    const modal = document.createElement('div');
-    modal.className = 'inanutshell-modal';
-    modal.id = 'inanutshell-summary-modal';
-    
-    const isTranscript = typeof data === 'object' && data.title;
-    const title = isTranscript ? data.title : 'Video Summary';
+
+    const modal = document.createElement("div");
+    modal.className = "inanutshell-modal";
+    modal.id = "inanutshell-summary-modal";
+
+    const isTranscript = typeof data === "object" && data.title;
+    const title = isTranscript ? data.title : "Video Summary";
     const content = isTranscript ? data.content : data;
-    
+
     modal.innerHTML = `
       <div class="inanutshell-modal-content">
         <div class="inanutshell-modal-header">
@@ -946,38 +1173,49 @@ class YouTubeContentScript {
         <div class="inanutshell-summary">
           <div class="transcript-content">
             <div class="transcript-stats">
-              <p><strong>Full Transcript (${content.length} characters)</strong></p>
+              <p><strong>Full Transcript (${
+                content.length
+              } characters)</strong></p>
             </div>
             <div class="transcript-text" style="max-height: 400px; overflow-y: auto; border: 1px solid #eee; padding: 16px; border-radius: 4px; font-size: 14px; line-height: 1.5;">
-              ${content.replace(/\n/g, '<br>')}
+              ${content.replace(/\n/g, "<br>")}
             </div>
           </div>
-          ${isTranscript ? `
+          ${
+            isTranscript
+              ? `
             <div class="transcript-meta">
-              <small>Video ID: ${data.videoId} | Extracted: ${new Date(data.timestamp).toLocaleString()}</small>
+              <small>Video ID: ${data.videoId} | Extracted: ${new Date(
+                  data.timestamp
+                ).toLocaleString()}</small>
             </div>
-          ` : ''}
+          `
+              : ""
+          }
         </div>
       </div>
     `;
-    
+
     // Add close functionality
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal || e.target.classList.contains('inanutshell-modal-close')) {
+    modal.addEventListener("click", (e) => {
+      if (
+        e.target === modal ||
+        e.target.classList.contains("inanutshell-modal-close")
+      ) {
         this.hideModals();
       }
     });
-    
+
     document.body.appendChild(modal);
   }
 
   showErrorMessage(message) {
     this.hideModals();
-    
-    const modal = document.createElement('div');
-    modal.className = 'inanutshell-modal';
-    modal.id = 'inanutshell-error-modal';
-    
+
+    const modal = document.createElement("div");
+    modal.className = "inanutshell-modal";
+    modal.id = "inanutshell-error-modal";
+
     modal.innerHTML = `
       <div class="inanutshell-modal-content">
         <div class="inanutshell-modal-header">
@@ -990,27 +1228,30 @@ class YouTubeContentScript {
         </div>
       </div>
     `;
-    
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal || e.target.classList.contains('inanutshell-modal-close')) {
+
+    modal.addEventListener("click", (e) => {
+      if (
+        e.target === modal ||
+        e.target.classList.contains("inanutshell-modal-close")
+      ) {
         this.hideModals();
       }
     });
-    
+
     document.body.appendChild(modal);
-    
+
     // Auto-hide error after 5 seconds
     setTimeout(() => this.hideModals(), 5000);
   }
 
   hideLoadingModal() {
-    const modal = document.getElementById('inanutshell-loading-modal');
+    const modal = document.getElementById("inanutshell-loading-modal");
     if (modal) modal.remove();
   }
 
   hideModals() {
-    const modals = document.querySelectorAll('.inanutshell-modal');
-    modals.forEach(modal => modal.remove());
+    const modals = document.querySelectorAll(".inanutshell-modal");
+    modals.forEach((modal) => modal.remove());
   }
 
   watchForUrlChanges() {
@@ -1020,7 +1261,7 @@ class YouTubeContentScript {
         currentUrl = window.location.href;
         // Clear processed videos cache on URL change
         this.thumbnailInjector.processedVideos.clear();
-        console.log('InANutshell: URL changed, cleared processedVideos cache');
+        console.log("InANutshell: URL changed, cleared processedVideos cache");
         // Re-add button if URL changed
         setTimeout(() => {
           this.addSummarizeButton();
@@ -1033,26 +1274,26 @@ class YouTubeContentScript {
 
 // Initialize when page loads
 function initializeExtension() {
-  console.log('InANutshell: Initializing extension...');
+  console.log("InANutshell: Initializing extension...");
   try {
     new YouTubeContentScript();
-    console.log('InANutshell: Extension initialized successfully');
+    console.log("InANutshell: Extension initialized successfully");
   } catch (error) {
-    console.error('InANutshell: Initialization failed:', error);
+    console.error("InANutshell: Initialization failed:", error);
   }
 }
 
 // Export classes for testing
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     YouTubeThumbnailInjector,
     YouTubeContentScript,
-    initializeExtension
+    initializeExtension,
   };
 } else {
   // Browser environment - initialize normally
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeExtension);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeExtension);
   } else {
     initializeExtension();
   }

@@ -62,15 +62,22 @@ class Summarizer {
   }
 
   buildPrompt(transcript, options = {}) {
-    const maxLength = options.maxLength || "max 8 sentences";
-    const style = options.style || "dash points";
-    const extras = options.extras || "with a space between points";
+    const maxLength = options.maxLength || "comprehensive detail";
+    const style = options.style || "detailed bullet points";
+    const extras = options.extras || "with specific examples and explanations";
 
-    return `Please summarize this YouTube video transcript in ${maxLength} ${style} ${extras}. Focus on the main points and key takeaways:
+    return `Write a news story summary of this YouTube video transcript. Present it as if you're reporting the key information to someone who hasn't watched the video.
 
+Format as detailed bullet points covering the most important information:
+- Each bullet point should be specific and informative (not vague)
+- Include relevant facts, dates, numbers, examples, or quotes when mentioned
+- Focus on what actually happened or was discussed, not generic statements
+- Provide 8-12 comprehensive bullet points
+
+Transcript:
 ${transcript}
 
-Summary:`;
+News Story Summary:`;
   }
 
   formatSummary(summary) {
