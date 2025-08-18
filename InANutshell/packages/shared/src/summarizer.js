@@ -70,9 +70,10 @@ class Summarizer {
 
 Format as detailed bullet points covering the most important information:
 - Each bullet point should be specific and informative (not vague)
+- Each bullet point header should be underlined and in bold only
 - Include relevant facts, dates, numbers, examples, or quotes when mentioned
 - Focus on what actually happened or was discussed, not generic statements
-- Provide 8-12 comprehensive bullet points
+- Provide 8-12 comprehensive bullet points, two sentences each maximum
 
 Transcript:
 ${transcript}
