@@ -1,20 +1,24 @@
 /* Styles for InANutshell browser extension */
 
 .inanutshell-summarize-btn {
-  background: #1976d2;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
   color: white;
   border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
+  border-radius: 8px;
+  padding: 10px 18px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   margin-left: 8px;
-  transition: background-color 0.2s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(30, 58, 138, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .inanutshell-summarize-btn:hover {
-  background: #1565c0;
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(30, 58, 138, 0.4);
 }
 
 .inanutshell-modal {
@@ -31,51 +35,142 @@
 }
 
 .inanutshell-modal-content {
-  background: white;
-  border-radius: 8px;
-  padding: 24px;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #4b5d8f 0%, #7f95dd 100%);
+  border-radius: 16px;
+  padding: 0;
+  max-width: 700px;
+  max-height: 85vh;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(30, 58, 138, 0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .inanutshell-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #eee;
+  padding: 24px 24px 20px 24px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .inanutshell-modal-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .inanutshell-modal-close {
-  background: none;
+  background: rgba(255, 255, 255, 0.2);
   border: none;
-  font-size: 24px;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
   cursor: pointer;
-  color: #666;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.inanutshell-modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
 }
 
 .inanutshell-summary {
   line-height: 1.6;
-  color: #444;
+  color: white;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  max-height: calc(85vh - 100px);
+  overflow-y: auto;
+}
+
+.inanutshell-summary .transcript-content {
+  margin-bottom: 16px;
+}
+
+.inanutshell-summary .transcript-stats {
+  margin-bottom: 12px;
+}
+
+.inanutshell-summary .transcript-stats strong {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+}
+
+.inanutshell-summary .transcript-text {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 14px;
+  line-height: 1.6;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.inanutshell-summary .transcript-text::-webkit-scrollbar {
+  width: 8px;
+}
+
+.inanutshell-summary .transcript-text::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.inanutshell-summary .transcript-text::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.inanutshell-summary .transcript-text::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.inanutshell-summary .transcript-meta {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.inanutshell-summary .transcript-meta small {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
 }
 
 .inanutshell-loading {
   text-align: center;
   padding: 40px;
+  color: white;
+}
+
+.inanutshell-loading h3 {
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  margin: 16px 0 8px 0;
+}
+
+.inanutshell-loading p {
+  color: rgba(255, 255, 255, 0.8);
+  margin: 8px 0;
+}
+
+.inanutshell-loading small {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .inanutshell-spinner {
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #1976d2;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top: 3px solid rgba(255, 255, 255, 0.8);
   border-radius: 50%;
   width: 40px;
   height: 40px;

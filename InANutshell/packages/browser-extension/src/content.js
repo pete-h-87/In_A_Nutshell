@@ -1288,7 +1288,7 @@ class YouTubeContentScript {
           <div class="inanutshell-spinner"></div>
           <h3>${title}</h3>
           <p>${subtitle}</p>
-          <small style="color: #666; margin-top: 8px; display: block;">${timeEstimate}</small>
+          <small style="color: #ffffffff; margin-top: 8px; display: block;">${timeEstimate}</small>
         </div>
       </div>
     `;
