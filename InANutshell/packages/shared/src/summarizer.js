@@ -3,7 +3,7 @@ class Summarizer {
   constructor(apiKey = null) {
     this.apiKey = apiKey || process.env.GEMINI_API_KEY;
     this.geminiEndpoint =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
   }
 
   async summarize(transcript, options = {}) {
@@ -21,26 +21,24 @@ class Summarizer {
     console.log("=============================");
 
     try {
-      const response = await fetch(
-        `${this.geminiEndpoint}?key=${this.apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: prompt,
-                  },
-                ],
-              },
-            ],
-          }),
-        }
-      );
+      const response = await fetch(this.geminiEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": this.apiKey,
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+        }),
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -70,10 +68,11 @@ class Summarizer {
 
 Format as detailed bullet points covering the most important information:
 - Each bullet point should be specific and informative (not vague)
-- Each bullet point header should be underlined and in bold only
+- Each bullet point header should be underlined
+- There needs to be a line space between each point
 - Include relevant facts, dates, numbers, examples, or quotes when mentioned
 - Focus on what actually happened or was discussed, not generic statements
-- Provide 8-12 comprehensive bullet points, two sentences each maximum
+- Provide 5 comprehensive bullet points, one sentence each, no longer than 20 words each
 
 Transcript:
 ${transcript}
